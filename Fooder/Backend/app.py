@@ -1,10 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from backend.api import restaurants_zikra
-from backend.api.restaurants import get_restaurants
-from backend.database.db import SessionLocal
-from backend.database.models import Restaurant
+from Backend.api import restaurants
+from Backend.database.db import SessionLocal
+from Backend.database.models import Restaurant
 
 
 app = FastAPI(title="FooDer Backend")
@@ -25,7 +24,6 @@ class SwipeRequest(BaseModel):
     food_id: int
     action: str
 
-app.include_router(restaurants_zikra.router)
 
 @app.get("/")
 def home():
