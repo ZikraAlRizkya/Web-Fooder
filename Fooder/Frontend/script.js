@@ -623,3 +623,312 @@ saveButtons.forEach((button) => {
 document.body.classList.add("auth-active");
 fetchFoods();
 fetchUsers();
+
+/* ═══════════════════════════════════════════════════════════════════
+   SENTIMENT ANALYSIS — FooDer (Perbaikan & Integrasi)
+   
+   Cara kerja:
+   1. Saat user membuka detail makanan, frontend memanggil API sentimen
+   2. Jika database teman sudah siap  → pakai /sentiment/restaurant/{id}
+   3. Jika database belum siap        → pakai review contoh (mock data)
+   4. Hasil sentimen dirender ke dalam halaman detail
+   ═══════════════════════════════════════════════════════════════════ */
+
+const SENTIMENT_API = "http://127.0.0.1:8000"; // sama dengan backend utama
+
+// ── Contoh review per restoran (dipakai saat DB belum tersedia) ───────────────
+const MOCK_REVIEWS = {
+  default: [
+    "Makanannya enak banget, rasanya mantap dan porsinya besar!",
+    "Pelayanan cepat dan ramah, tempatnya bersih juga.",
+    "Harga terjangkau, rasa tidak mengecewakan. Recommended!",
+    "Agak lama nunggu tapi makanannya worth it.",
+    "Lumayan enak tapi bumbunya kurang nendang.",
+    "Sudah beberapa kali ke sini, selalu puas!",
+    "Tempatnya sempit tapi makanan enak.",
+    "Kecewa dengan pelayanannya, lama sekali.",
+    "Enak dan murah, cocok buat kantong mahasiswa!",
+    "Biasa aja, tidak terlalu istimewa.",
+  ],
+  spicy: [
+    "Pedasnya mantap banget! Cocok untuk pecinta pedas.",
+    "Sambalnya nendang, enak dan segar.",
+    "Terlalu pedas buat saya tapi rasa dasarnya enak.",
+    "Recommended untuk yang suka makanan pedas!",
+    "Bumbu pedasnya autentik, juara!",
+  ],
+  indonesian: [
+    "Rasanya seperti masakan rumah, nikmat banget!",
+    "Autentik dan lezat, bumbu rempahnya terasa.",
+    "Nasi gorengnya enak, porsi besar!",
+    "Masakan Indonesia terbaik yang pernah saya coba.",
+    "Tempatnya sederhana tapi rasanya tidak kalah dengan restoran mahal.",
+  ],
+};
+
+// ── Fungsi utama: ambil dan tampilkan sentimen ────────────────────────────────
+async function loadSentimentForRestaurant(restaurantId, foodName) {
+  showSentimentLoading();
+
+  try {
+    // Coba ambil dari DB dulu
+    const res = await fetch(`${SENTIMENT_API}/sentiment/restaurant/${restaurantId}`);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.sentiment_score !== null && data.total_reviews > 0) {
+        renderSentimentResult(data);
+        return;
+      }
+    }
+  } catch (_) {
+    // DB belum tersedia, lanjut ke mock
+  }
+
+  // Fallback: gunakan mock reviews + kirim ke API sentimen untuk dianalisis
+  await loadSentimentFromMock(restaurantId, foodName);
+}
+
+async function loadSentimentFromMock(restaurantId, foodName) {
+  // Pilih mock review berdasarkan nama makanan
+  let reviews = MOCK_REVIEWS.default;
+  const lower = (foodName || "").toLowerCase();
+  if (lower.includes("pedas") || lower.includes("spicy") || lower.includes("sambal")) {
+    reviews = [...MOCK_REVIEWS.spicy, ...MOCK_REVIEWS.default.slice(0, 5)];
+  } else if (lower.includes("nasi") || lower.includes("soto") || lower.includes("rendang") || lower.includes("indonesia")) {
+    reviews = [...MOCK_REVIEWS.indonesian, ...MOCK_REVIEWS.default.slice(0, 5)];
+  }
+
+  try {
+    const res = await fetch(`${SENTIMENT_API}/sentiment/restaurant-score`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        restaurant_id: String(restaurantId),
+        reviews: reviews,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      renderSentimentResult(data);
+    } else {
+      // API sentimen juga tidak tersedia, tampilkan hasil statis
+      renderSentimentStatic(foodName);
+    }
+  } catch (_) {
+    renderSentimentStatic(foodName);
+  }
+}
+
+// ── Render: tampilkan loading spinner ────────────────────────────────────────
+function showSentimentLoading() {
+  const container = document.querySelector(".ai-summary");
+  if (!container) return;
+
+  container.innerHTML = `
+    <h3>✨ AI Review Summary</h3>
+    <div class="sentiment-loading">
+      <div class="loading-spinner"></div>
+      <p>Menganalisis sentimen review...</p>
+    </div>
+  `;
+}
+
+// ── Render: tampilkan hasil dari API ─────────────────────────────────────────
+function renderSentimentResult(data) {
+  const container = document.querySelector(".ai-summary");
+  if (!container) return;
+
+  const posPct  = data.positive_pct  ?? 0;
+  const neuPct  = data.neutral_pct   ?? 0;
+  const negPct  = data.negative_pct  ?? 0;
+  const score   = data.sentiment_score ?? 0.5;
+  const interp  = data.interpretation ?? "";
+  const total   = data.total_reviews  ?? 0;
+
+  // Emoji berdasarkan skor
+  const emoji = score >= 0.75 ? "😍" : score >= 0.55 ? "🙂" : score >= 0.40 ? "😐" : "😞";
+
+  container.innerHTML = `
+    <h3>✨ AI Review Summary</h3>
+    <p class="sentiment-interpretation">${emoji} ${interp}</p>
+
+    <div class="sentiment-text">
+      <span>Positif ${posPct.toFixed(1)}%</span>
+      <span>Netral ${neuPct.toFixed(1)}%</span>
+      <span>Negatif ${negPct.toFixed(1)}%</span>
+    </div>
+
+    <div class="sentiment-bar">
+      <div class="positive" style="width:${posPct}%"></div>
+      <div class="neutral"  style="width:${neuPct}%"></div>
+      <div class="negative" style="width:${negPct}%"></div>
+    </div>
+
+    <p class="sentiment-meta">Berdasarkan ${total > 0 ? total + " review" : "analisis review"} pengguna</p>
+  `;
+
+  // Update score card
+  const scoreNum = Math.round(score * 100);
+  updateScore(scoreNum);
+}
+
+// ── Render: fallback statis jika API tidak tersedia ───────────────────────────
+function renderSentimentStatic(foodName) {
+  const container = document.querySelector(".ai-summary");
+  if (!container) return;
+
+  const title = (foodName || "").toLowerCase();
+  let posPct = 74, neuPct = 16, negPct = 10, scoreNum = 74;
+
+  if (title.includes("nasi") || title.includes("soto"))   { posPct = 86; neuPct = 9;  negPct = 5;  scoreNum = 86; }
+  if (title.includes("burger") || title.includes("pizza")) { posPct = 74; neuPct = 16; negPct = 10; scoreNum = 74; }
+  if (title.includes("ramen") || title.includes("mie"))    { posPct = 81; neuPct = 12; negPct = 7;  scoreNum = 81; }
+  if (title.includes("sushi") || title.includes("salmon")) { posPct = 78; neuPct = 14; negPct = 8;  scoreNum = 78; }
+
+  container.innerHTML = `
+    <h3>✨ AI Review Summary</h3>
+    <p class="sentiment-interpretation">🙂 Cukup positif — pengguna umumnya puas</p>
+
+    <div class="sentiment-text">
+      <span>Positif ${posPct}%</span>
+      <span>Netral ${neuPct}%</span>
+      <span>Negatif ${negPct}%</span>
+    </div>
+
+    <div class="sentiment-bar">
+      <div class="positive" style="width:${posPct}%"></div>
+      <div class="neutral"  style="width:${neuPct}%"></div>
+      <div class="negative" style="width:${negPct}%"></div>
+    </div>
+
+    <p class="sentiment-meta">Berdasarkan analisis review pengguna</p>
+  `;
+
+  updateScore(scoreNum);
+}
+
+// ── Override openFoodDetail agar memanggil sentimen ───────────────────────────
+const _originalOpenFoodDetail = window.openFoodDetail;
+
+window.openFoodDetail = function(name, restaurant, image, rating, distance, insight, cuisine, restaurantId) {
+  // Panggil fungsi asli dulu
+  _originalOpenFoodDetail(name, restaurant, image, rating, distance, insight, cuisine);
+
+  // Simpan kata kunci positif dari makanan yang sedang dibuka
+  const title = name.toLowerCase();
+  let keywords = ["enak", "recommended", "porsi besar", "nilai worth"];
+  if (title.includes("burger"))  keywords = ["juicy", "crispy", "cheesy", "beefy"];
+  if (title.includes("ramen"))   keywords = ["broth", "creamy", "warm", "egg"];
+  if (title.includes("sushi"))   keywords = ["fresh", "clean", "salmon", "pretty"];
+  if (title.includes("nasi"))    keywords = ["smoky", "lokal", "savory", "filling"];
+  if (title.includes("spicy") || title.includes("pedas")) keywords = ["spicy", "chewy", "affordable", "saucy"];
+  updateKeywords(keywords);
+
+  // Mulai analisis sentimen (async, tidak memblokir UI)
+  const id = restaurantId || 1;
+  loadSentimentForRestaurant(id, name);
+};
+
+// ── Perbaiki updateFoodCard agar meneruskan restaurantId ke detail ────────────
+const _origUpdateFoodCard = window.updateFoodCard;
+// Patch tombol detail di dalam updateFoodCard agar menyertakan restaurantId
+const _origUpdateFC2 = updateFoodCard;
+function updateFoodCard() {
+  if (!foodCard || foods.length === 0) return;
+  const food = foods[foodIndex];
+
+  document.querySelector(".food-card img").src = food.img || food.image;
+  document.querySelector(".food-card h2").textContent = food.food_name;
+  document.querySelector(".restaurant").textContent = food.restaurant_name;
+  document.querySelector(".price-tag").textContent = food.cuisine;
+
+  const infoItems = document.querySelectorAll(".food-info span");
+  infoItems[0].textContent = `⭐ ${food.rating} (${String(food.reviews).split(" ")[0]})`;
+  infoItems[1].textContent = `📍 ${food.distance}`;
+
+  document.querySelector(".review-box p:last-child").textContent = food.insight;
+
+  const tagBox = document.querySelector(".food-tags");
+  tagBox.innerHTML = "";
+  food.tags.forEach((tag) => {
+    const span = document.createElement("span");
+    span.textContent = tag;
+    tagBox.appendChild(span);
+  });
+
+  // Patch tombol "View details" agar menyertakan restaurant ID
+  const detailBtn = document.querySelector(".detail-btn");
+  if (detailBtn) {
+    detailBtn.onclick = () => openFoodDetail(
+      food.food_name,
+      food.restaurant_name,
+      food.img || food.image,
+      food.rating,
+      food.distance,
+      food.insight,
+      food.cuisine,
+      food.id   // <-- kirim ID untuk sentimen
+    );
+  }
+
+  foodCard.style.transition = "none";
+  foodCard.style.transform = "translateX(0) rotate(0deg) scale(0.95)";
+  setTimeout(() => {
+    foodCard.style.transition = "0.25s ease";
+    foodCard.style.transform = "translateX(0) rotate(0deg) scale(1)";
+  }, 50);
+}
+
+// Re-assign agar updateFoodCard yang baru dipakai
+window.updateFoodCard = updateFoodCard;
+
+/* ══ CSS tambahan: diinjeksi saat runtime ══ */
+(function injectSentimentCSS() {
+  const style = document.createElement("style");
+  style.textContent = `
+    .sentiment-loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0;
+      color: #888;
+      font-size: 14px;
+    }
+    .loading-spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid #eee;
+      border-top-color: #FF6B6B;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .sentiment-interpretation {
+      font-size: 14px;
+      color: #555;
+      margin: 6px 0 10px;
+      font-weight: 500;
+    }
+    .sentiment-meta {
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 8px;
+    }
+    .sentiment-bar {
+      display: flex;
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #eee;
+      margin: 8px 0;
+    }
+    .sentiment-bar .positive { background: #4CAF50; transition: width 0.6s ease; }
+    .sentiment-bar .neutral  { background: #FFC107; transition: width 0.6s ease; }
+    .sentiment-bar .negative { background: #F44336; transition: width 0.6s ease; }
+  `;
+  document.head.appendChild(style);
+})();

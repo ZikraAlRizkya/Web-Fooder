@@ -1,12 +1,14 @@
 """
 sentiment_service.py
 ====================
-Sentiment Analysis Engine untuk FooDer menggunakan IndoBERT.
-Model: mdhugol/indonesia-bert-sentiment-classifier
-  → Fine-tuned khusus untuk teks Indonesia
-  → Label: LABEL_0 = negatif, LABEL_1 = netral, LABEL_2 = positif
+Sentiment Analysis Engine untuk FooDer.
 
-Fallback: TF-IDF + Logistic Regression (jika IndoBERT tidak tersedia).
+Prioritas model:
+  1. IndoBERT (mdhugol/indonesia-bert-sentiment-classifier) — akurasi terbaik
+  2. TF-IDF + Logistic Regression (fallback lokal)
+  3. Dummy keyword-based scorer (last resort)
+
+Label: positif | netral | negatif
 """
 
 from __future__ import annotations
@@ -22,10 +24,13 @@ from utils.text_cleaning import clean_text
 
 logger = logging.getLogger(__name__)
 
-#  Konstanta 
+# ── Konstanta ─────────────────────────────────────────────────────────────────
 INDOBERT_MODEL = "mdhugol/indonesia-bert-sentiment-classifier"
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "..app/models/sentiment_model.pkl")
-VECTORIZER_PATH = os.path.join(os.path.dirname(__file__), "..app/models/tfidf_vectorizer.pkl")
+
+# Path model relatif terhadap file ini
+_HERE = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(_HERE, "..", "app", "models", "sentiment_model.pkl")
+VECTORIZER_PATH = os.path.join(_HERE, "..", "app", "models", "tfidf_vectorizer.pkl")
 
 # Mapping label IndoBERT → label FooDer
 LABEL_MAP = {
@@ -36,16 +41,6 @@ LABEL_MAP = {
 
 SentimentLabel = Literal["positif", "netral", "negatif"]
 
-
-#  Data class hasil prediksi 
-@dataclass
-class SentimentResult:
-    label: SentimentLabel
-    score: float          # 0.0 – 1.0 (confidence)
-    numeric_score: float  # negatif=0.0, netral=0.5, positif=1.0
-
-
-#  Konversi label → skor numerik 
 NUMERIC_SCORE_MAP: dict[SentimentLabel, float] = {
     "positif": 1.0,
     "netral": 0.5,
@@ -53,24 +48,30 @@ NUMERIC_SCORE_MAP: dict[SentimentLabel, float] = {
 }
 
 
-#  Sentiment Service 
+# ── Data class hasil prediksi ─────────────────────────────────────────────────
+@dataclass
+class SentimentResult:
+    label: SentimentLabel
+    score: float          # confidence model (0.0–1.0)
+    numeric_score: float  # negatif=0.0, netral=0.5, positif=1.0
+
+
+# ── Sentiment Service ─────────────────────────────────────────────────────────
 class SentimentService:
     """
-    Layanan prediksi sentimen.
-    Secara otomatis mencoba IndoBERT terlebih dahulu,
-    lalu fallback ke model TF-IDF lokal jika gagal.
+    Layanan prediksi sentimen dengan fallback otomatis.
+    Urutan: IndoBERT → TF-IDF → Dummy.
     """
 
     def __init__(self):
-        self._pipeline = None          # IndoBERT pipeline
-        self._tfidf_model = None       # Logistic Regression fallback
+        self._pipeline = None
+        self._tfidf_model = None
         self._tfidf_vectorizer = None
         self._backend: str = "none"
         self._load_model()
 
-    #  Loading 
+    # ── Loading ───────────────────────────────────────────────────────────────
     def _load_model(self):
-        """Coba IndoBERT dulu, fallback ke TF-IDF lokal."""
         if self._try_load_indobert():
             self._backend = "indobert"
             logger.info("IndoBERT loaded successfully.")
@@ -78,18 +79,17 @@ class SentimentService:
             self._backend = "tfidf"
             logger.info("TF-IDF fallback model loaded.")
         else:
-            logger.warning("Tidak ada model yang tersedia. Gunakan dummy scorer.")
+            logger.warning("Tidak ada model tersedia. Menggunakan dummy scorer.")
             self._backend = "dummy"
 
     def _try_load_indobert(self) -> bool:
         try:
             from transformers import pipeline
-
             self._pipeline = pipeline(
                 "text-classification",
                 model=INDOBERT_MODEL,
                 tokenizer=INDOBERT_MODEL,
-                top_k=None,           # kembalikan semua label + skor
+                top_k=None,
             )
             return True
         except Exception as e:
@@ -98,29 +98,31 @@ class SentimentService:
 
     def _try_load_tfidf(self) -> bool:
         try:
-            with open(MODEL_PATH, "rb") as f:
+            model_path = os.path.normpath(MODEL_PATH)
+            vec_path = os.path.normpath(VECTORIZER_PATH)
+            with open(model_path, "rb") as f:
                 self._tfidf_model = pickle.load(f)
-            with open(VECTORIZER_PATH, "rb") as f:
+            with open(vec_path, "rb") as f:
                 self._tfidf_vectorizer = pickle.load(f)
             return True
         except Exception as e:
             logger.warning(f"TF-IDF model gagal dimuat: {e}")
             return False
 
-    # Prediksi tunggal 
+    # ── Prediksi tunggal ──────────────────────────────────────────────────────
     def predict(self, review_text: str) -> SentimentResult:
         """
         Prediksi sentimen satu review.
-
+        
         Args:
             review_text: Teks review mentah (belum di-clean).
-
+        
         Returns:
             SentimentResult dengan label, confidence score, dan numeric score.
         """
         cleaned = clean_text(review_text, remove_stopwords=False)
 
-        if not cleaned:
+        if not cleaned.strip():
             return SentimentResult(label="netral", score=0.5, numeric_score=0.5)
 
         if self._backend == "indobert":
@@ -131,19 +133,14 @@ class SentimentService:
             return self._predict_dummy(cleaned)
 
     def _predict_indobert(self, cleaned_text: str) -> SentimentResult:
-        # IndoBERT max 512 token — potong teks panjang
+        # Potong teks panjang (IndoBERT max 512 token)
         truncated = " ".join(cleaned_text.split()[:400])
         results = self._pipeline(truncated)[0]
-
-        # Ambil label dengan skor tertinggi
         best = max(results, key=lambda x: x["score"])
-        label_raw = best["label"]
-        label: SentimentLabel = LABEL_MAP.get(label_raw, "netral")
-        score = round(best["score"], 4)
-
+        label: SentimentLabel = LABEL_MAP.get(best["label"], "netral")
         return SentimentResult(
             label=label,
-            score=score,
+            score=round(best["score"], 4),
             numeric_score=NUMERIC_SCORE_MAP[label],
         )
 
@@ -151,33 +148,27 @@ class SentimentService:
         vec = self._tfidf_vectorizer.transform([cleaned_text])
         proba = self._tfidf_model.predict_proba(vec)[0]
         classes = self._tfidf_model.classes_
-
         best_idx = int(np.argmax(proba))
         label: SentimentLabel = classes[best_idx]
-        score = round(float(proba[best_idx]), 4)
-
         return SentimentResult(
             label=label,
-            score=score,
+            score=round(float(proba[best_idx]), 4),
             numeric_score=NUMERIC_SCORE_MAP.get(label, 0.5),
         )
 
     def _predict_dummy(self, cleaned_text: str) -> SentimentResult:
-        """
-        Dummy scorer sederhana berbasis kata kunci.
-        Digunakan saat tidak ada model yang tersedia.
-        """
+        """Scorer berbasis kata kunci (last resort)."""
         POSITIVE_WORDS = {
             "enak", "lezat", "mantap", "bagus", "baik", "suka", "segar",
             "rekomendasi", "recommended", "worth", "puas", "ramah", "cepat",
             "bersih", "murah", "terjangkau", "nikmat", "istimewa", "kece",
+            "sempurna", "top", "joss", "nendang", "juara", "hits",
         }
         NEGATIVE_WORDS = {
             "jelek", "buruk", "pahit", "asin", "hambar", "lambat", "mahal",
-            "kotor", "kecewa", "mengecewakan", "tidak enak", "basi", "sempit",
-            "berantakan", "tidak ramah", "lama", "tidak puas",
+            "kotor", "kecewa", "mengecewakan", "tidak", "basi", "sempit",
+            "berantakan", "lama", "zonk", "gagal", "menyesal", "biasa",
         }
-
         words = set(cleaned_text.split())
         pos_count = len(words & POSITIVE_WORDS)
         neg_count = len(words & NEGATIVE_WORDS)
@@ -189,21 +180,19 @@ class SentimentService:
         else:
             return SentimentResult(label="netral", score=0.6, numeric_score=0.5)
 
-    #  Prediksi batch 
+    # ── Prediksi batch ────────────────────────────────────────────────────────
     def predict_batch(self, reviews: list[str]) -> list[SentimentResult]:
         """Prediksi sentimen untuk banyak review sekaligus."""
         return [self.predict(r) for r in reviews]
 
-    #  Sentiment Score Restoran 
-    def compute_restaurant_sentiment_score(
-        self, reviews: list[str]
-    ) -> dict:
+    # ── Sentiment Score Restoran ──────────────────────────────────────────────
+    def compute_restaurant_sentiment_score(self, reviews: list[str]) -> dict:
         """
         Hitung sentiment score agregat untuk satu restoran.
 
         Returns:
             {
-                "sentiment_score": float,   # 0.0 – 1.0
+                "sentiment_score": float,  # 0.0–1.0
                 "positive_pct": float,
                 "neutral_pct": float,
                 "negative_pct": float,
@@ -221,7 +210,6 @@ class SentimentService:
 
         results = self.predict_batch(reviews)
         total = len(results)
-
         counts = {"positif": 0, "netral": 0, "negatif": 0}
         numeric_total = 0.0
 
@@ -244,7 +232,7 @@ class SentimentService:
         return self._backend
 
 
-#  Singleton 
+# ── Singleton ─────────────────────────────────────────────────────────────────
 _sentiment_service: SentimentService | None = None
 
 

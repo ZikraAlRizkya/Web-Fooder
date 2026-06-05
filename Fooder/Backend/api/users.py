@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from backend.database.db import SessionLocal
-from backend.database.models import User
+from database.db import SessionLocal
+from database.models import User
 
 router = APIRouter(
     prefix="/users",

@@ -1,14 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from backend.api import restaurants
-from backend.api.restaurants import get_restaurants
-from backend.api import users
-from backend.database.db import SessionLocal
-from backend.database.models import Restaurant,User
-
+from api import restaurants
+from api.restaurants import get_restaurants
+from api import users
+from database.db import SessionLocal
+from database.models import Restaurant, User
 
 app = FastAPI(title="FooDer Backend")
+from database.db import Base, engine
+Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,6 +21,19 @@ app.add_middleware(
 
 app.include_router(restaurants.router)
 app.include_router(users.router)
+
+
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "sentiment"))
+
+try:
+    from routes.sentiment import router as sentiment_router
+    from routes.review import router as review_router
+    app.include_router(sentiment_router)
+    app.include_router(review_router)
+    print("[OK] Sentiment router berhasil dimuat.")
+except Exception as e:
+    print(f"[WARN] Sentiment router gagal: {e}")
 
 @app.get("/")
 def home():

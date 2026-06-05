@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, Table
 from sqlalchemy.orm import relationship
-from backend.database.db import Base
+from database.db import Base
 
 class Category(Base):
     __tablename__ = "categories"
