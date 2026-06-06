@@ -1084,7 +1084,7 @@ function showScrapingLoader(foodName) {
 
   // Animate steps
   let step = 0;
-  const stepDuration = 3500 / LOADER_MESSAGES.length;
+  const stepDuration = 75000 / LOADER_MESSAGES.length;
 
   function animateStep() {
     if (step >= LOADER_MESSAGES.length) return;

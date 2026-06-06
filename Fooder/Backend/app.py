@@ -4,8 +4,9 @@ from pydantic import BaseModel
 from Fooder.backend.api import restaurants
 from Fooder.backend.api import users
 from Fooder.backend.api import foods
+from Fooder.backend.api import reviews
 from Fooder.backend.database.db import SessionLocal
-from Fooder.backend.database.models import User, Restaurant, Food
+from Fooder.backend.database.models import User, Restaurant
 from Fooder.backend.scraping.gmaps_scraper import search_and_save
 
 app = FastAPI(title="FooDer Backend")
@@ -23,6 +24,7 @@ app.add_middleware(
 app.include_router(restaurants.router)
 app.include_router(users.router)
 app.include_router(foods.router)
+app.include_router(reviews.router)
 
 
 import sys, os

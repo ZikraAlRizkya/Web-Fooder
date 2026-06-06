@@ -47,6 +47,9 @@ class Restaurant(Base):
     rating = Column(Float) 
     count_rating = Column(Integer)
     food_name = Column(String)
+    description = Column(Text)
+    img_url = Column(Text)
+    gmaps_url = Column(Text)
     
     reviews = relationship("Review", back_populates="restaurant")
 

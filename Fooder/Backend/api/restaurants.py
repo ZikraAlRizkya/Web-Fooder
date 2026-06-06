@@ -22,6 +22,9 @@ class RestaurantCreate(BaseModel):
     rating:          Optional[float] = None
     count_rating:    Optional[int]   = None
     food_name:       Optional[str]   = None
+    description:     Optional[str] = None
+    img_url:         Optional[str] = None
+    gmaps_url:       Optional[str] = None
 
 
 # ── GET all ───────────────────────────────────────────────────────────────────
@@ -38,7 +41,10 @@ def get_restaurants():
             "rating":          item.rating,
             "city":            item.city,
             "count_rating":    item.count_rating,
-            "food_name":       item.food_name
+            "food_name":       item.food_name,
+            "description":     item.description,
+            "img_url":         item.img_url,
+            "gmaps_url":       item.gmaps_url
         })
     session.close()
     return result
@@ -76,7 +82,10 @@ def create_restaurant(payload: RestaurantCreate):
             longitude       = payload.longitude,
             rating          = payload.rating,
             count_rating    = payload.count_rating,
-            food_name       = payload.food_name
+            food_name       = payload.food_name,
+            description     = payload.description,
+            img_url         = payload.img_url,
+            gmaps_url       = payload.gmaps_url
         )
         session.add(new_restaurant)
         session.commit()
@@ -87,7 +96,10 @@ def create_restaurant(payload: RestaurantCreate):
             "rating":          new_restaurant.rating,
             "city":            new_restaurant.city,
             "count_rating":    new_restaurant.count_rating,
-            "food_name":       new_restaurant.food_name
+            "food_name":       new_restaurant.food_name,
+            "description":     new_restaurant.description,
+            "img_url":         new_restaurant.img_url,
+            "gmaps_url":       new_restaurant.gmaps_url
         }
     except Exception as e:
         session.rollback()

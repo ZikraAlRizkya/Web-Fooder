@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from Fooder.backend.database.db import SessionLocal
 from Fooder.backend.database.models import Food
+from sqlalchemy import func
 
 router = APIRouter(
     prefix="/foods",
@@ -13,7 +14,12 @@ def get_foods():
 
     session = SessionLocal()
 
-    foods = session.query(Food).limit(10).all()
+    foods = (
+    session.query(Food)
+    .order_by(func.random())
+    .limit(10)
+    .all()
+)
 
     result = []
 
