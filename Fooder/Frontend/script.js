@@ -17,6 +17,10 @@ let startX = 0;
 let currentX = 0;
 let isDragging = false;
 
+// ── Swipe counter untuk deteksi 5x swipe kanan ────────────────────────────
+let rightSwipeCount = 0;
+const RIGHT_SWIPE_THRESHOLD = 5;
+
 const fallbackFoods = [
   {
     id: 1,
@@ -72,23 +76,33 @@ const fallbackFoods = [
   }
 ];
 
+function capitalizeWords(text) {
+  if (!text) return "";
+
+  return text
+    .toLowerCase()
+    .split(" ")
+    .map(word =>
+      word.charAt(0).toUpperCase() + word.slice(1)
+    )
+    .join(" ");
+}
+
 async function fetchFoods() {
   try {
-    const response = await fetch(`${API_BASE_URL}/restaurants`);
+    const response = await fetch(`${API_BASE_URL}/foods`);
     const data = await response.json();
 
     foods = data.map((food, index) => ({
       id: food.id || index + 1,
-      food_name: food.food_name || food.name || "Food Name",
-      restaurant_name: food.restaurant_name || food.restaurant || "Restaurant Name",
+      food_name: capitalizeWords(
+          food.food_name || food.name || "Food Name"
+      ),
       img: food.img_url || food.image || "https://picsum.photos/500/700",
       image: food.img_url || food.img || "https://picsum.photos/500/700",
-      rating: food.rating || "4.5",
-      reviews: food.reviews || food.count_rating || "0 reviews",
       cuisine: food.origin_country || food.cuisine || "Food · $$",
       tags: food.tags || ["Recommended"],
       insight: food.insight || "This food is recommended based on rating and user preference.",
-      distance: typeof food.distance === "number" ? `${food.distance}km` : food.distance || "1.0km"
     }));
 
     if (foods.length === 0) {
@@ -285,12 +299,7 @@ function updateFoodCard() {
 
   document.querySelector(".food-card img").src = food.img || food.image;
   document.querySelector(".food-card h2").textContent = food.food_name;
-  document.querySelector(".restaurant").textContent = food.restaurant_name;
   document.querySelector(".price-tag").textContent = food.cuisine;
-
-  const infoItems = document.querySelectorAll(".food-info span");
-  infoItems[0].textContent = `⭐ ${food.rating} (${String(food.reviews).split(" ")[0]})`;
-  infoItems[1].textContent = `📍 ${food.distance}`;
 
   document.querySelector(".review-box p:last-child").textContent = food.insight;
 
@@ -347,14 +356,105 @@ function nextFood() {
 function swipeRight() {
   if (!foodCard) return;
 
+  const currentFood = foods[foodIndex];
+
+  // ── Tambah hitungan swipe kanan global (bukan per makanan) ──
+  rightSwipeCount++;
+
   saveSwipe("like");
+
+  // Tampilkan indikator progress swipe
+  showSwipeProgress(rightSwipeCount, currentFood);
 
   foodCard.style.transition = "0.35s ease";
   foodCard.style.transform = "translateX(520px) rotate(25deg)";
 
   setTimeout(() => {
-    nextFood();
+    // Swipe ke-5 → makanan SAAT INI yang terpilih
+    if (rightSwipeCount >= RIGHT_SWIPE_THRESHOLD) {
+      rightSwipeCount = 0; // reset untuk sesi berikutnya
+      triggerFoodMatch(currentFood);
+    } else {
+      nextFood();
+    }
   }, 350);
+}
+
+function showSwipeProgress(count, food) {
+  const existing = document.getElementById("swipeProgressIndicator");
+  if (existing) existing.remove();
+
+  if (count >= RIGHT_SWIPE_THRESHOLD) return;
+
+  const indicator = document.createElement("div");
+  indicator.id = "swipeProgressIndicator";
+  indicator.innerHTML = `
+    <div style="display:flex; gap:8px; align-items:center;">
+      <span style="font-size:13px; color:#2b211b; font-weight:700;">${count}/${RIGHT_SWIPE_THRESHOLD}</span>
+      <div style="display:flex; gap:4px;">
+        ${Array.from({length: RIGHT_SWIPE_THRESHOLD}, (_, i) =>
+          `<div style="width:10px;height:10px;border-radius:50%;background:${i < count ? 'linear-gradient(135deg,#ff844d,#ff5f5f)' : '#e8ddd5'};transition:background 0.2s;"></div>`
+        ).join('')}
+      </div>
+      <span style="font-size:13px;">❤️</span>
+    </div>
+  `;
+  indicator.style.cssText = `
+    position: fixed;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff8ef;
+    border: 2px solid #ffe4dc;
+    padding: 8px 18px;
+    border-radius: 999px;
+    z-index: 9999;
+    box-shadow: 0 8px 24px rgba(255,95,95,0.15);
+    pointer-events: none;
+    animation: swipeIndicatorIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  `;
+  document.body.appendChild(indicator);
+
+  // Inject keyframe jika belum ada
+  if (!document.getElementById("swipeIndicatorKeyframe")) {
+    const s = document.createElement("style");
+    s.id = "swipeIndicatorKeyframe";
+    s.textContent = `
+      @keyframes swipeIndicatorIn {
+        from { opacity:0; transform:translateX(-50%) translateY(-8px) scale(0.9); }
+        to   { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
+      }
+    `;
+    document.head.appendChild(s);
+  }
+
+  setTimeout(() => { if (indicator.parentNode) indicator.remove(); }, 1800);
+}
+
+async function triggerFoodMatch(food) {
+  const foodName = food?.food_name || "makanan ini";
+
+  showScrapingLoader(foodName);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/match/${encodeURIComponent(foodName)}`);
+    const data = await response.json();
+    window._matchedFood = foodName;
+    window._matchedRestaurants = data.restaurants || [];
+
+    await waitForLoaderFinish();
+    hideScrapingLoader();
+    showRestaurantResultPage(foodName, window._matchedRestaurants);
+  } catch (error) {
+    console.error("Match/scraping failed:", error);
+    await waitForLoaderFinish();
+    hideScrapingLoader();
+    showRestaurantResultPage(foodName, []);
+  }
+}
+
+function waitForLoaderFinish() {
+  return new Promise(resolve => setTimeout(resolve, 3500));
 }
 
 function swipeLeft() {
@@ -841,12 +941,7 @@ function updateFoodCard() {
 
   document.querySelector(".food-card img").src = food.img || food.image;
   document.querySelector(".food-card h2").textContent = food.food_name;
-  document.querySelector(".restaurant").textContent = food.restaurant_name;
   document.querySelector(".price-tag").textContent = food.cuisine;
-
-  const infoItems = document.querySelectorAll(".food-info span");
-  infoItems[0].textContent = `⭐ ${food.rating} (${String(food.reviews).split(" ")[0]})`;
-  infoItems[1].textContent = `📍 ${food.distance}`;
 
   document.querySelector(".review-box p:last-child").textContent = food.insight;
 
@@ -863,10 +958,7 @@ function updateFoodCard() {
   if (detailBtn) {
     detailBtn.onclick = () => openFoodDetail(
       food.food_name,
-      food.restaurant_name,
       food.img || food.image,
-      food.rating,
-      food.distance,
       food.insight,
       food.cuisine,
       food.id   // <-- kirim ID untuk sentimen
@@ -932,3 +1024,412 @@ window.updateFoodCard = updateFoodCard;
   `;
   document.head.appendChild(style);
 })();
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  SCRAPING LOADER – animasi loading saat scraping Google Maps
+// ══════════════════════════════════════════════════════════════════════════════
+
+const LOADER_MESSAGES = [
+  { icon: "🗺️", text: "Mencari restoran di Google Maps..." },
+  { icon: "📍", text: "Menemukan lokasi terdekat..." },
+  { icon: "⭐", text: "Mengambil data rating & ulasan..." },
+  { icon: "💾", text: "Menyimpan ke database..." },
+  { icon: "✨", text: "Hampir selesai..." },
+];
+
+let loaderInterval = null;
+
+function showScrapingLoader(foodName) {
+  const existing = document.getElementById("scrapingLoader");
+  if (existing) existing.remove();
+
+  injectLoaderAndResultCSS();
+
+  const loader = document.createElement("div");
+  loader.id = "scrapingLoader";
+  loader.innerHTML = `
+    <div class="fl-overlay">
+      <div class="fl-box">
+        <div class="fl-food-name">🍽️ ${foodName}</div>
+        <div class="fl-title">Kamu memilih makanan ini!</div>
+        <div class="fl-subtitle">Sedang mencari restoran terbaik untukmu...</div>
+
+        <div class="fl-anim">
+          <div class="fl-ring"></div>
+          <div class="fl-ring fl-ring2"></div>
+          <div class="fl-icon-wrap">
+            <span class="fl-icon" id="flIcon">🗺️</span>
+          </div>
+        </div>
+
+        <div class="fl-msg" id="flMsg">Mencari restoran di Google Maps...</div>
+
+        <div class="fl-bar-wrap">
+          <div class="fl-bar-fill" id="flBarFill"></div>
+        </div>
+
+        <div class="fl-steps" id="flSteps">
+          ${LOADER_MESSAGES.map((m, i) => `
+            <div class="fl-step" id="flStep${i}">
+              <span class="fl-step-icon">${m.icon}</span>
+              <span class="fl-step-text">${m.text}</span>
+              <span class="fl-step-check" id="flCheck${i}">⏳</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(loader);
+
+  // Animate steps
+  let step = 0;
+  const stepDuration = 3500 / LOADER_MESSAGES.length;
+
+  function animateStep() {
+    if (step >= LOADER_MESSAGES.length) return;
+    const prev = document.getElementById(`flCheck${step - 1}`);
+    const stepEl = document.getElementById(`flStep${step}`);
+    const msgEl = document.getElementById("flMsg");
+    const iconEl = document.getElementById("flIcon");
+    const fillEl = document.getElementById("flBarFill");
+
+    if (prev) prev.textContent = "✅";
+    if (stepEl) stepEl.classList.add("active");
+    if (msgEl) msgEl.textContent = LOADER_MESSAGES[step].text;
+    if (iconEl) {
+      iconEl.style.transform = "scale(0)";
+      setTimeout(() => {
+        iconEl.textContent = LOADER_MESSAGES[step].icon;
+        iconEl.style.transform = "scale(1)";
+      }, 150);
+    }
+    if (fillEl) fillEl.style.width = ((step + 1) / LOADER_MESSAGES.length * 100) + "%";
+
+    step++;
+    if (step < LOADER_MESSAGES.length) {
+      loaderInterval = setTimeout(animateStep, stepDuration);
+    } else {
+      setTimeout(() => {
+        const last = document.getElementById(`flCheck${LOADER_MESSAGES.length - 1}`);
+        if (last) last.textContent = "✅";
+      }, 200);
+    }
+  }
+
+  animateStep();
+}
+
+function hideScrapingLoader() {
+  if (loaderInterval) { clearTimeout(loaderInterval); loaderInterval = null; }
+  const loader = document.getElementById("scrapingLoader");
+  if (loader) {
+    loader.style.opacity = "0";
+    loader.style.transition = "opacity 0.4s ease";
+    setTimeout(() => loader.remove(), 400);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  HALAMAN HASIL RESTORAN
+// ══════════════════════════════════════════════════════════════════════════════
+
+function showRestaurantResultPage(foodName, restaurants) {
+  const existing = document.getElementById("restaurantResultPage");
+  if (existing) existing.remove();
+
+  // Sembunyikan semua page, tapi JANGAN sembunyikan navbar
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+
+  const fallback = [
+    { restaurant_name: "Warung Makan Sederhana", food_name: foodName, rating: 4.7, count_rating: 842,  city: "Bandung", address: "Jl. Braga No.12, Bandung" },
+    { restaurant_name: "Resto Nusantara",        food_name: foodName, rating: 4.5, count_rating: 1203, city: "Bandung", address: "Jl. Dago No.88, Bandung" },
+    { restaurant_name: "Kedai Rasa Asli",        food_name: foodName, rating: 4.3, count_rating: 567,  city: "Bandung", address: "Jl. Cihampelas No.45, Bandung" },
+  ];
+  const list = (restaurants && restaurants.length > 0) ? restaurants : fallback;
+
+  const avgRating = list.length
+    ? (list.reduce((s, r) => s + (r.rating || 0), 0) / list.length).toFixed(1)
+    : "–";
+
+  const page = document.createElement("section");
+  page.id = "restaurantResultPage";
+  page.className = "page active rr-page";
+
+  page.innerHTML = `
+    <!-- Hero -->
+    <div class="rr-hero">
+      <button class="rr-back" onclick="closeRestaurantResultPage()">←</button>
+      <div>
+        <p class="small-text" style="color:#ff844d;">PILIHAN KAMU</p>
+        <h1 style="font-size:34px;">${foodName}</h1>
+        <div class="trending-badge">🎉 ${list.length} Restoran Ditemukan</div>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="rr-stats">
+      <div class="rr-stat">
+        <b>${list.length}</b>
+        <span>Restoran</span>
+      </div>
+      <div class="rr-stat-divider"></div>
+      <div class="rr-stat">
+        <b>⭐ ${avgRating}</b>
+        <span>Avg Rating</span>
+      </div>
+      <div class="rr-stat-divider"></div>
+      <div class="rr-stat">
+        <b>📍 Terdekat</b>
+        <span>Diurutkan</span>
+      </div>
+    </div>
+
+    <!-- List -->
+    <div class="rr-list">
+      ${list.length ? list.map((r, i) => `
+        <div class="rr-card" style="animation-delay:${i * 0.07}s">
+          <div class="rr-card-left">
+            <div class="rr-rank">${i + 1}</div>
+          </div>
+          <div class="rr-card-body">
+            <div class="rr-card-top">
+              <div>
+                <div class="rr-card-name">${r.restaurant_name || "Nama Restoran"}</div>
+                <div class="rr-card-food">🍽️ ${r.food_name || foodName}</div>
+              </div>
+              <div class="rr-card-rating">⭐ ${r.rating || "–"}</div>
+            </div>
+            <div class="rr-card-addr">
+              📍 ${r.address || r.city || "Lokasi tidak tersedia"}
+              ${r.count_rating ? `<span class="rr-review-count">${Number(r.count_rating).toLocaleString()} ulasan</span>` : ""}
+            </div>
+            <div class="rr-card-actions">
+              <button class="rr-btn rr-btn-primary" onclick="openGoogleMaps('${encodeURIComponent(r.restaurant_name || foodName)}')">🗺️ Buka Maps</button>
+              <button class="rr-btn rr-btn-secondary" onclick="shareRestaurant('${(r.restaurant_name || foodName).replace(/'/g, "\\'")}')">📤 Bagikan</button>
+            </div>
+          </div>
+        </div>
+      `).join('') : `
+        <div class="rr-empty">
+          <div style="font-size:52px;margin-bottom:14px;">😔</div>
+          <h3 style="margin-top:0;">Belum ada restoran</h3>
+          <p>Coba lagi nanti ya!</p>
+        </div>
+      `}
+    </div>
+  `;
+
+  // Sisipkan sebelum navbar agar tetap dalam .app
+  const app = document.querySelector(".app");
+  app.appendChild(page);
+
+  // Scroll ke atas
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function closeRestaurantResultPage() {
+  const page = document.getElementById("restaurantResultPage");
+  if (page) page.remove();
+  showPage("homePage");
+}
+
+function openGoogleMaps(encoded) {
+  const name = decodeURIComponent(encoded);
+  window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`, "_blank");
+}
+
+function shareRestaurant(name) {
+  if (navigator.share) {
+    navigator.share({ title: "FooDer Rekomendasi", text: `Coba ${name} — ditemukan via FooDer! 🍽️` });
+  } else {
+    alert(`Restoran: ${name}`);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  INJECT CSS – Loader + Restaurant Result (sesuai tema #fff8ef / orange)
+// ══════════════════════════════════════════════════════════════════════════════
+
+function injectLoaderAndResultCSS() {
+  if (document.getElementById("foorderDynamicCSS")) return;
+  const s = document.createElement("style");
+  s.id = "foorderDynamicCSS";
+  s.textContent = `
+
+    /* ── LOADER ─────────────────────────────────────────────────── */
+    @keyframes flFadeIn   { from{opacity:0} to{opacity:1} }
+    @keyframes flPulse    { 0%{transform:scale(0.85);opacity:.7} 100%{transform:scale(1.55);opacity:0} }
+    @keyframes flPulse2   { 0%{transform:scale(0.85);opacity:.4} 100%{transform:scale(1.9);opacity:0} }
+    @keyframes flIconPop  { 0%,100%{transform:scale(1)} 50%{transform:scale(1.18)} }
+    @keyframes flShimmer  { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+
+    .fl-overlay {
+      position: fixed; inset: 0;
+      background: rgba(43,33,27,.55);
+      backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 99999;
+      animation: flFadeIn 0.3s ease;
+    }
+    .fl-box {
+      background: #fff8ef;
+      border-radius: 36px;
+      padding: 32px 24px 28px;
+      width: 320px; max-width: 90vw;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(255,95,95,.18), 0 8px 20px rgba(0,0,0,.08);
+    }
+    .fl-food-name {
+      font-size: 22px; font-weight: 900; color: #ff844d;
+      margin-bottom: 2px;
+    }
+    .fl-title {
+      font-size: 17px; font-weight: 800; color: #2b211b;
+      margin-bottom: 4px;
+    }
+    .fl-subtitle { font-size: 13px; color: #7b6f67; margin-bottom: 22px; }
+
+    .fl-anim {
+      position: relative; width: 80px; height: 80px;
+      margin: 0 auto 18px;
+    }
+    .fl-ring {
+      position: absolute; inset: 0; border-radius: 50%;
+      border: 3px solid #ff844d;
+      animation: flPulse 1.4s ease-out infinite;
+    }
+    .fl-ring2 { animation: flPulse2 1.4s ease-out .5s infinite; border-color: #ff5f5f; }
+    .fl-icon-wrap {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: #ffe4dc;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .fl-icon {
+      font-size: 30px; transition: transform 0.25s ease;
+      animation: flIconPop 1.8s ease infinite;
+    }
+
+    .fl-msg { font-size: 13px; color: #7b6f67; min-height: 20px; margin-bottom: 14px; }
+
+    .fl-bar-wrap {
+      height: 8px; background: #f8e3cb; border-radius: 999px;
+      margin-bottom: 18px; overflow: hidden;
+    }
+    .fl-bar-fill {
+      height: 100%; width: 0%; border-radius: 999px;
+      background: linear-gradient(90deg, #ff844d, #ff5f5f);
+      background-size: 200% 100%;
+      transition: width 0.6s ease;
+      animation: flShimmer 1.5s linear infinite;
+    }
+
+    .fl-steps { display: flex; flex-direction: column; gap: 6px; text-align: left; }
+    .fl-step {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: 14px;
+      background: #fff2e5; opacity: 0.4;
+      transition: opacity .3s, background .3s;
+    }
+    .fl-step.active { opacity: 1; background: white; box-shadow: 0 4px 14px rgba(0,0,0,.06); }
+    .fl-step-icon { font-size: 15px; }
+    .fl-step-text { flex: 1; font-size: 12px; color: #6b5c51; font-weight: 600; }
+    .fl-step-check { font-size: 13px; }
+
+    /* ── RESTAURANT RESULT PAGE ──────────────────────────────────── */
+    @keyframes rrSlideUp {
+      from { opacity:0; transform:translateY(22px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .rr-page { padding-bottom: 120px; }
+
+    .rr-hero {
+      padding: 28px 0 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .rr-back {
+      flex-shrink: 0;
+      width: 52px; height: 52px;
+      border: none; border-radius: 50%;
+      background: white;
+      font-size: 22px; cursor: pointer;
+      box-shadow: 0 10px 30px rgba(0,0,0,.08);
+      margin-top: 4px;
+    }
+
+    .rr-stats {
+      display: flex; align-items: center; justify-content: space-between;
+      background: white; border-radius: 26px;
+      padding: 18px 20px; margin-bottom: 24px;
+      box-shadow: 0 12px 30px rgba(0,0,0,.05);
+    }
+    .rr-stat { text-align: center; flex: 1; }
+    .rr-stat b { display: block; font-size: 17px; font-weight: 900; color: #2b211b; }
+    .rr-stat span { font-size: 11px; color: #7b6f67; font-weight: 700; letter-spacing: .5px; }
+    .rr-stat-divider { width: 1px; height: 36px; background: #f0e8df; }
+
+    .rr-list { display: flex; flex-direction: column; gap: 14px; }
+
+    .rr-card {
+      background: white;
+      border-radius: 26px;
+      padding: 14px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      box-shadow: 0 12px 30px rgba(0,0,0,.05);
+      animation: rrSlideUp 0.4s ease both;
+    }
+
+    .rr-card-left { padding-top: 2px; }
+    .rr-rank {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg,#ff844d,#ff5f5f);
+      color: white; font-size: 14px; font-weight: 900;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .rr-card-body { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+
+    .rr-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .rr-card-name { font-size: 16px; font-weight: 800; color: #2b211b; margin-bottom: 3px; }
+    .rr-card-food { font-size: 12px; color: #ff844d; font-weight: 700; }
+
+    .rr-card-rating {
+      background: #fff2e5; color: #ff844d;
+      font-size: 13px; font-weight: 800;
+      padding: 5px 12px; border-radius: 999px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+
+    .rr-card-addr {
+      font-size: 12px; color: #7b6f67;
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    .rr-review-count { margin-left: auto; color: #b0a49c; font-size: 11px; }
+
+    .rr-card-actions { display: flex; gap: 8px; }
+    .rr-btn {
+      flex: 1; padding: 11px 10px; border-radius: 999px;
+      border: none; font-size: 12px; font-weight: 800;
+      cursor: pointer; transition: opacity .15s, transform .15s;
+    }
+    .rr-btn:active { opacity: .75; transform: scale(.97); }
+    .rr-btn-primary {
+      background: linear-gradient(135deg,#ff844d,#ff5f5f);
+      color: white;
+      box-shadow: 0 8px 20px rgba(255,95,95,.22);
+    }
+    .rr-btn-secondary { background: #fff2e5; color: #ff844d; }
+
+    .rr-empty {
+      text-align: center; padding: 48px 20px;
+      color: #7b6f67;
+    }
+  `;
+  document.head.appendChild(s);
+}

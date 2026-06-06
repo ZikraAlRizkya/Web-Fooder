@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from database.db import SessionLocal
-from database.models import User
+from Fooder.backend.database.db import SessionLocal
+from Fooder.backend.database.models import User
 
 router = APIRouter(
     prefix="/users",

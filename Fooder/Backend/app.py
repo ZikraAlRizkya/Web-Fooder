@@ -1,14 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from api import restaurants
-from api.restaurants import get_restaurants
-from api import users
-from database.db import SessionLocal
-from database.models import Restaurant, User
+from Fooder.backend.api import restaurants
+from Fooder.backend.api import users
+from Fooder.backend.api import foods
+from Fooder.backend.database.db import SessionLocal
+from Fooder.backend.database.models import User, Restaurant, Food
+from Fooder.backend.scraping.gmaps_scraper import search_and_save
 
 app = FastAPI(title="FooDer Backend")
-from database.db import Base, engine
+from Fooder.backend.database.db import Base, engine
 Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
@@ -21,6 +22,7 @@ app.add_middleware(
 
 app.include_router(restaurants.router)
 app.include_router(users.router)
+app.include_router(foods.router)
 
 
 import sys, os
@@ -130,6 +132,44 @@ def login_user(data: UserLogin):
         }
     return {
         "message": "Invalid email or password"
+    }
+
+@app.get("/match/{food_name}")
+def get_match(food_name: str):
+    """
+    Trigger scraping Google Maps untuk food_name tertentu,
+    simpan hasilnya ke database, lalu kembalikan daftar restoran.
+    """
+    try:
+        restaurants_data = search_and_save(food_name)
+    except Exception as e:
+        print(f"[WARN] Scraping gagal: {e}")
+        # Kembalikan data dari database yang sudah ada jika scraping gagal
+        session = SessionLocal()
+        try:
+            existing = session.query(Restaurant).filter(
+                Restaurant.food_name.ilike(f"%{food_name}%")
+            ).order_by(Restaurant.rating.desc()).limit(10).all()
+            restaurants_data = [
+                {
+                    "restaurant_name": r.restaurant_name,
+                    "food_name": r.food_name,
+                    "rating": r.rating,
+                    "count_rating": r.count_rating,
+                    "city": r.city,
+                    "address": r.address,
+                    "latitude": r.latitude,
+                    "longitude": r.longitude,
+                }
+                for r in existing
+            ]
+        finally:
+            session.close()
+
+    return {
+        "matched_food": food_name,
+        "restaurants": restaurants_data,
+        "total": len(restaurants_data) if restaurants_data else 0
     }
 
 @app.get("/recommendations")

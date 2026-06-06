@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, Table
 from sqlalchemy.orm import relationship
-from database.db import Base
+from Fooder.backend.database.db import Base
 
 class Category(Base):
     __tablename__ = "categories"
@@ -24,6 +24,17 @@ class User(Base):
     like = Column(Integer)
     swipe = Column(Integer)
 
+class Food(Base):
+    __tablename__ = "foods"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title_cleaned = Column(Text)
+    category = Column(Text)
+    ingredients_cleaned = Column(Text)
+    img_url = Column(Text)
+    description = Column(Text)
+    origin_country = Column(Text)
+
 class Restaurant(Base):
     __tablename__ = "restaurants"
 
@@ -36,12 +47,8 @@ class Restaurant(Base):
     rating = Column(Float) 
     count_rating = Column(Integer)
     food_name = Column(String)
-    description = Column(Text)
-    origin_country = Column(String)
-    img_url = Column(Text)
     
     reviews = relationship("Review", back_populates="restaurant")
-
 
 class Review(Base):
     __tablename__ = "reviews"
