@@ -1,4 +1,22 @@
-models/ 
-venv/ 
-__pycache__/ 
-*.pkl 
+# Dataset
+Dataset/
+
+# Artifacts
+Fooder/artifacts/
+
+# Python
+__pycache__/
+*.pyc
+
+# Models
+models/
+*.pkl
+
+# Virtual Environment
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# VSCode
+.vscode/
