@@ -18,6 +18,21 @@ from Fooder.backend.recommendation.recommendation_system_tfidf import (
     decide_match,
 )
 
+import os
+from google import genai
+from pydantic import BaseModel
+from dotenv import load_dotenv
+
+from pathlib import Path
+
+env_path = Path(__file__).resolve().parent.parent / ".env"
+
+load_dotenv(env_path)
+
+client = genai.Client(
+    api_key=os.getenv("GEMINI_API_KEY")
+)
+
 app = FastAPI(title="FooDer Backend")
 from Fooder.backend.database.db import Base, engine
 Base.metadata.create_all(bind=engine)
@@ -37,6 +52,31 @@ _food_master = None
 _tfidf = None
 _tfidf_matrix = None
 
+# ── Chatbot
+
+class ChatRequest(BaseModel):
+    message: str
+    
+FOODER_SYSTEM_PROMPT = """
+Kamu adalah FoodBot, asisten kuliner pada aplikasi FooDer.
+
+Tugas kamu:
+
+1. Menjawab pertanyaan tentang makanan.
+2. Menjawab pertanyaan tentang restoran.
+3. Memberikan rekomendasi makanan.
+4. Menjelaskan rasa makanan.
+5. Menjelaskan kategori makanan.
+6. Membantu penggunaan aplikasi FooDer.
+
+Jika pengguna bertanya di luar topik kuliner atau aplikasi FooDer,
+jawab dengan sopan:
+
+"Maaf, saya hanya dapat membantu pertanyaan seputar makanan,
+restoran, dan penggunaan aplikasi FooDer."
+
+Jawab singkat, ramah, dan mudah dipahami.
+"""
 
 def _get_rec_engine():
     """Lazy-load food_master dan TF-IDF engine dari database."""
@@ -216,6 +256,22 @@ def init_user_preference(data: InitPreferenceRequest):
         "preferences": session_obj.initial_preferences,
     }'''
 
+@app.post("/chat")
+async def chat(request: ChatRequest):
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=request.message
+        )
+        return {
+            "success": True,
+            "reply": response.text
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "reply": str(e)
+        }
 
 @app.post("/swipe")
 def save_swipe(data: SwipeRequest):

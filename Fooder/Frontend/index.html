@@ -505,6 +505,48 @@
       </p>
     </div>
   </div>
+  <!-- FOODBOT FLOATING CHAT -->
+
+<div id="chatbotBtn">
+  🤖
+</div>
+
+<div id="chatbotBox">
+
+  <div class="chat-header">
+    🍔 FoodBot
+    <span onclick="toggleChatbot()">
+      ✕
+    </span>
+  </div>
+
+  <div id="chatMessages">
+
+    <div class="bot-msg">
+      Halo! Saya FoodBot 🍔
+      <br>
+      Tanya apa saja tentang makanan,
+      restoran, atau rekomendasi kuliner.
+    </div>
+
+  </div>
+
+  <div class="chat-input-wrap">
+
+    <input
+      type="text"
+      id="chatInput"
+      placeholder="Tulis pertanyaan..."
+      onkeypress="if(event.key==='Enter') sendChat()"
+    >
+
+    <button onclick="sendChat()">
+      Kirim
+    </button>
+
+  </div>
+
+</div>
   <script src="script.js"></script>
 </body>
 </html>

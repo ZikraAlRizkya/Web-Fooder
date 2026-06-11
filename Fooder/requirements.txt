@@ -22,3 +22,5 @@ webdriver-manager
 transformers
 torch
 sentencepiece
+
+google-genai

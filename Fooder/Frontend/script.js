@@ -157,6 +157,91 @@ function renderSearchFoods(
     `).join("");
 }
 
+function toggleChatbot() {
+
+  const box =
+    document.getElementById("chatbotBox");
+
+  if (box.style.display === "flex") {
+    box.style.display = "none";
+  } else {
+    box.style.display = "flex";
+  }
+}
+
+document
+  .getElementById("chatbotBtn")
+  .addEventListener(
+    "click",
+    toggleChatbot
+  );
+
+async function sendChat() {
+
+  const input =
+    document.getElementById("chatInput");
+
+  const text =
+    input.value.trim();
+
+  if (!text) return;
+
+  const messages =
+    document.getElementById("chatMessages");
+
+  messages.innerHTML += `
+    <div class="user-msg">
+      ${text}
+    </div>
+  `;
+
+  input.value = "";
+
+  messages.scrollTop =
+    messages.scrollHeight;
+
+  try {
+
+    const response =
+      await fetch(
+        `${API_BASE_URL}/chat`,
+        {
+          method:"POST",
+
+          headers:{
+            "Content-Type":"application/json",
+            "ngrok-skip-browser-warning":"true"
+          },
+
+          body:JSON.stringify({
+            message:text
+          })
+        }
+      );
+
+    const data =
+      await response.json();
+
+    messages.innerHTML += `
+      <div class="bot-msg">
+        ${data.reply}
+      </div>
+    `;
+
+    messages.scrollTop =
+      messages.scrollHeight;
+
+  }
+  catch(error){
+
+    messages.innerHTML += `
+      <div class="bot-msg">
+        Maaf, chatbot sedang bermasalah.
+      </div>
+    `;
+  }
+}
+
 async function loadFoodsByCuisine(
   cuisine
 ) {
