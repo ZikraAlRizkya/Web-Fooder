@@ -157,6 +157,15 @@ function renderSearchFoods(
     `).join("");
 }
 
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
+
+    updateChatbotVisibility();
+
+  }
+);
+
 function toggleChatbot() {
 
   const box =
@@ -166,6 +175,37 @@ function toggleChatbot() {
     box.style.display = "none";
   } else {
     box.style.display = "flex";
+  }
+}
+
+function updateChatbotVisibility() {
+
+  const chatbotBtn =
+    document.getElementById("chatbotBtn");
+
+  const chatbotBox =
+    document.getElementById("chatbotBox");
+
+  if (!chatbotBtn || !chatbotBox) return;
+
+  const allowedPages = [
+    "homePage",
+    "searchPage",
+    "favoritePage",
+    "nearbyPage",
+    "profilePage"
+  ];
+
+  const shouldShow =
+    allowedPages.includes(
+      document.querySelector(".page.active")?.id
+    );
+
+  chatbotBtn.style.display =
+    shouldShow ? "flex" : "none";
+
+  if (!shouldShow) {
+    chatbotBox.style.display = "none";
   }
 }
 
@@ -495,6 +535,7 @@ function showPage(pageId) {
     top: 0,
     behavior: "smooth"
   });
+  updateChatbotVisibility();
 }
 
 window.showPage = showPage;
