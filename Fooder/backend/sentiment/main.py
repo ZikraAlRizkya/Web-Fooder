@@ -8,7 +8,7 @@ Menjalankan dua service:
 Untuk development, jalankan:
   uvicorn app:app --reload --port 8000
 """
-
+'''
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -172,4 +172,4 @@ def get_recommendations():
 def get_user_preferences(user_id: int):
     user_swipes = [s for s in swipe_history if s["user_id"] == user_id]
     liked_ids = [s["food_id"] for s in user_swipes if s["action"] == "like"]
-    return {"user_id": user_id, "total_swipes": len(user_swipes), "liked_food_ids": liked_ids}
+    return {"user_id": user_id, "total_swipes": len(user_swipes), "liked_food_ids": liked_ids}'''

@@ -10,6 +10,16 @@ const darkModeToggle = document.getElementById("darkModeToggle");
 
 let currentCuisine = "All";
 
+async function apiFetch(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    headers: {
+      "ngrok-skip-browser-warning": "true",
+      ...(options.headers || {})
+    }
+  });
+}
+
 if (localStorage.getItem("darkMode") === "enabled") {
   document.body.classList.add("dark-mode");
 
@@ -152,7 +162,7 @@ async function loadFoodsByCuisine(
 ) {
   try {
     const response =
-      await fetch(
+      await apiFetch(
         `${API_BASE_URL}/foods/cuisine/${cuisine}`
       );
     const foods =
@@ -174,7 +184,7 @@ async function loadSearchFoods() {
   if (!list) return;
   try {
     const response =
-      await fetch(
+      await apiFetch(
         `${API_BASE_URL}/foods`
       );
     const foods =
@@ -257,7 +267,7 @@ function capitalizeWords(text) {
 
 async function fetchFoods() {
   try {
-    const response = await fetch(`${API_BASE_URL}/foods`);
+    const response = await apiFetch(`${API_BASE_URL}/foods`);
     const data = await response.json();
 
     foods = data.map((food, index) => {
@@ -295,7 +305,7 @@ async function fetchFoods() {
 async function fetchUsers() {
 
   try {
-    const response = await fetch(`${API_BASE_URL}/users`);
+    const response = await apiFetch(`${API_BASE_URL}/users`);
     const data = await response.json();
     users = data;
     console.log(users);
@@ -416,7 +426,7 @@ async function loginUser() {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await apiFetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password })
@@ -460,7 +470,7 @@ async function registerUser() {
   if (otherAllergy) selectedAllergies.push(otherAllergy);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const response = await apiFetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -504,7 +514,7 @@ async function logoutUser() {
 
   if (currentUser) {
     try {
-      await fetch(
+      await apiFetch(
         `${API_BASE_URL}/logout/${currentUser.id}`,
         {
           method: "POST"
@@ -624,7 +634,7 @@ async function startSwipeFromPreference() {
     // ==========================================
     // SAVE PREFERENCES
     // ==========================================
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_BASE_URL}/preferences`,
       {
         method: "POST",
@@ -663,7 +673,7 @@ async function startSwipeFromPreference() {
       "loadingText"
     ).textContent =
       "Calculating your recommendations...";
-    const recResponse = await fetch(
+    const recResponse = await apiFetch(
       `${API_BASE_URL}/recommendations/personal/${currentUser.id}`
     );
     const recData =
@@ -720,7 +730,7 @@ async function saveSwipe(action) {
   const userId = currentUser?.id || 1;
 
   try {
-    const swipeResponse = await fetch(
+    const swipeResponse = await apiFetch(
         `${API_BASE_URL}/swipe`,
         {
             method: "POST",
@@ -766,7 +776,7 @@ async function saveSwipe(action) {
         return;
     }
 
-    const recResponse = await fetch(
+    const recResponse = await apiFetch(
       `${API_BASE_URL}/recommendations/personal/${userId}`
     );
 
@@ -917,7 +927,7 @@ function swipeRight() {
 
 async function loadRecommendations(userId) {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_BASE_URL}/recommendations/personal/${userId}`
     );
 
@@ -1007,7 +1017,7 @@ async function triggerFoodMatch(food) {
   }
   // Mulai scraping SEKARANG
   const scrapingPromise =
-    fetch(
+    apiFetch(
       `${API_BASE_URL}/match/${encodeURIComponent(foodName)}/${userId}`
     )
       .then(r => r.json())
@@ -1449,7 +1459,7 @@ async function performSearch() {
   try {
 
     const response =
-      await fetch(
+      await apiFetch(
         `${API_BASE_URL}/foods/search?keyword=${encodeURIComponent(keyword)}&cuisine=${encodeURIComponent(currentCuisine)}`
       );
 
@@ -1763,7 +1773,7 @@ async function loadSentimentForRestaurant(restaurantId, foodName) {
 
   try {
     // Coba ambil dari DB dulu
-    const res = await fetch(`${SENTIMENT_API}/sentiment/restaurant/${restaurantId}`);
+    const res = await apiFetch(`${SENTIMENT_API}/sentiment/restaurant/${restaurantId}`);
 
     if (res.ok) {
       const data = await res.json();
@@ -1791,7 +1801,7 @@ async function loadSentimentFromMock(restaurantId, foodName) {
   }
 
   try {
-    const res = await fetch(`${SENTIMENT_API}/sentiment/restaurant-score`, {
+    const res = await apiFetch(`${SENTIMENT_API}/sentiment/restaurant-score`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2623,7 +2633,7 @@ async function getRestaurantInsight(
 ) {
   try {
 
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_BASE_URL}/review/insight/${restaurantId}`
     );
 
