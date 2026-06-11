@@ -166,6 +166,34 @@ document.addEventListener(
   }
 );
 
+const chatInput =
+  document.getElementById("chatInput");
+
+chatInput.addEventListener(
+  "input",
+  function () {
+
+    this.style.height = "auto";
+
+    this.style.height =
+      this.scrollHeight + "px";
+  }
+);
+
+messages.innerHTML += `
+  <div
+    class="bot-msg"
+    id="typingIndicator"
+  >
+    FoodBot sedang berpikir...
+    <div class="typing-indicator">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+`;
+
 function toggleChatbot() {
 
   const box =
@@ -262,9 +290,11 @@ async function sendChat() {
     const data =
       await response.json();
 
+    document.getElementById("typingIndicator")?.remove();
+
     messages.innerHTML += `
       <div class="bot-msg">
-        ${data.reply}
+        ${marked.parse(data.reply)}
       </div>
     `;
 

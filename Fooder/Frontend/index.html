@@ -533,12 +533,11 @@
 
   <div class="chat-input-wrap">
 
-    <input
-      type="text"
-      id="chatInput"
-      placeholder="Tulis pertanyaan..."
-      onkeypress="if(event.key==='Enter') sendChat()"
-    >
+  <textarea
+    id="chatInput"
+    placeholder="Tulis pertanyaan..."
+    rows="1"
+  ></textarea>
 
     <button onclick="sendChat()">
       Kirim
@@ -547,6 +546,7 @@
   </div>
 
 </div>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
