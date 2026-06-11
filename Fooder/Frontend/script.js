@@ -180,20 +180,6 @@ chatInput.addEventListener(
   }
 );
 
-messages.innerHTML += `
-  <div
-    class="bot-msg"
-    id="typingIndicator"
-  >
-    FoodBot sedang berpikir...
-    <div class="typing-indicator">
-      <span></span>
-      <span></span>
-      <span></span>
-    </div>
-  </div>
-`;
-
 function toggleChatbot() {
 
   const box =
@@ -260,6 +246,17 @@ async function sendChat() {
   messages.innerHTML += `
     <div class="user-msg">
       ${text}
+    </div>
+  `;
+
+    messages.innerHTML += `
+    <div class="bot-msg" id="typingIndicator">
+      FoodBot sedang berpikir...
+      <div class="typing-indicator">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
     </div>
   `;
 
