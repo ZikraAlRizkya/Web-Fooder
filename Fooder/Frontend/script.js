@@ -282,16 +282,14 @@ async function startRestaurantSearch(
       );
       return;
     }
-    showLoader(
-      "Mencari restoran..."
-    );
+    showLoading();
     const response =
       await fetch(
         `${API_BASE_URL}/match/${encodeURIComponent(foodName)}/${user.id}`
       );
     const data =
       await response.json();
-    hideLoader();
+    hideLoading();
     await showRestaurantResultPage(
       foodName,
       data.restaurants
@@ -301,7 +299,7 @@ async function startRestaurantSearch(
     );
   }
   catch(error){
-    hideLoader();
+    hideLoading();
     console.error(
       error
     );
