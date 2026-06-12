@@ -115,6 +115,7 @@ def load_food_master_from_db(db: Session) -> pd.DataFrame:
             "raw_name":   food.title_cleaned   or "",
             "raw_ingr":   food.ingredients_cleaned or "",
             "raw_cat":    food.category        or "",
+            "raw_country": food.origin_country or "",
         })
 
     df = pd.DataFrame(rows)
@@ -126,6 +127,7 @@ def load_food_master_from_db(db: Session) -> pd.DataFrame:
     df["food_name"] = df["raw_name"].apply(clean_text)
     df["ingredients_clean"] = df["raw_ingr"].apply(clean_text)
     df["category_clean"] = df["raw_cat"].apply(clean_text)
+    df["origin_country"] = df["raw_country"].apply(clean_text)
 
     # --------------------------------------------------------
     # BUILD food_text
@@ -192,7 +194,11 @@ def load_food_master_from_db(db: Session) -> pd.DataFrame:
         "taste_mood",
         "requirement",
         "food_source",
+        "origin_country"
     ]].copy()
+    
+    print("\nFOOD_MASTER COLUMNS:")
+    print(df.columns.tolist())
     
     return food_master
 
@@ -708,17 +714,24 @@ def retrieve_candidates(
         tfidf
     )
 
-    dislike_scores = np.zeros(len(food_master))
-    
     if user_vector is None:
         return pd.DataFrame()
 
+    dislike_scores = np.zeros(len(food_master))
+
     similarity_scores = (
-        cosine_similarity(user_vector, tfidf_matrix)
+        cosine_similarity(
+            user_vector,
+            tfidf_matrix
+        )
         .flatten()
     )
 
+    # ==========================================
+    # DISLIKE VECTOR
+    # ==========================================
     if user_session.disliked_foods:
+
         disliked_rows = food_master[
             food_master["food_id"].isin(
                 user_session.disliked_foods
@@ -743,7 +756,11 @@ def retrieve_candidates(
                 .flatten()
             )
 
+    # ==========================================
+    # BUILD FULL CANDIDATES FIRST
+    # ==========================================
     candidates = food_master.copy()
+
     candidates["similarity_score"] = similarity_scores
     candidates["dislike_score"] = dislike_scores
 
@@ -752,19 +769,9 @@ def retrieve_candidates(
         - 0.5 * candidates["dislike_score"]
     )
 
-    if "Vegetarian" in user_session.selected_requirements:
-
-        candidates = candidates[
-            candidates["requirement"] == "vegetarian"
-        ]
-    
-    if "High Protein" in user_session.selected_requirements:
-
-        candidates = candidates[
-            candidates["requirement"] == "high_protein"
-        ]
-    
-    # Remove liked & disliked foods
+    # ==========================================
+    # REMOVE SWIPED FOODS
+    # ==========================================
     excluded = (
         set(user_session.liked_foods)
         | set(user_session.disliked_foods)
@@ -774,24 +781,85 @@ def retrieve_candidates(
         ~candidates["food_id"].isin(excluded)
     ]
 
-    print("\n" + "="*70)
+    # ==========================================
+    # HARD FILTER CUISINE
+    # ==========================================
+    if user_session.selected_cuisines:
+
+        selected_cuisine = (
+            user_session.selected_cuisines[0]
+            .lower()
+        )
+
+        cuisine_candidates = candidates[
+            candidates["origin_country"]
+            .fillna("")
+            .str.lower()
+            == selected_cuisine
+        ]
+
+        print(
+            "\nAVAILABLE COUNTRIES:"
+        )
+
+        print(
+            candidates["origin_country"]
+            .value_counts()
+        )
+
+        print(
+            "SELECTED:",
+            selected_cuisine
+        )
+
+        print(
+            "FOUND:",
+            len(cuisine_candidates)
+        )
+
+        # Pakai filter jika masih ada kandidat
+        if len(cuisine_candidates) > 0:
+
+            print(
+                f"[CUISINE FILTER] "
+                f"{selected_cuisine}"
+            )
+
+            candidates = cuisine_candidates
+
+        else:
+
+            print(
+                "[CUISINE FILTER] "
+                "Fallback all countries"
+            )
+
+    # ==========================================
+    # REQUIREMENT FILTER
+    # ==========================================
+    if "Vegetarian" in user_session.selected_requirements:
+
+        candidates = candidates[
+            candidates["requirement"]
+            == "vegetarian"
+        ]
+
+    if "High Protein" in user_session.selected_requirements:
+
+        candidates = candidates[
+            candidates["requirement"]
+            == "high_protein"
+        ]
+
+    # ==========================================
+    # DEBUG
+    # ==========================================
+    print("\n" + "=" * 70)
     print("RETRIEVE CANDIDATES")
-    print("="*70)
+    print("=" * 70)
 
     print("LIKED:", user_session.liked_foods)
     print("DISLIKED:", user_session.disliked_foods)
-
-    print(
-        f"MAX SIMILARITY : {similarity_scores.max():.4f}"
-    )
-
-    print(
-        f"MIN SIMILARITY : {similarity_scores.min():.4f}"
-    )
-
-    print(
-        f"MEAN SIMILARITY: {similarity_scores.mean():.4f}"
-    )
 
     top_preview = (
         candidates
@@ -808,38 +876,12 @@ def retrieve_candidates(
 
         print(
             f"- {row['food_name']} | "
+            f"country={row['origin_country']} | "
             f"sim={row['similarity_score']:.4f} | "
-            f"dis={row['dislike_score']:.4f} | "
             f"final={row['final_score']:.4f}"
         )
 
-    print(
-        f"MAX DISLIKE SCORE : {dislike_scores.max():.4f}"
-    )
-
-    print(
-        f"MEAN DISLIKE SCORE: {dislike_scores.mean():.4f}"
-    )
-    
-    print("\nTOP 10 MOST DISLIKED")
-
-    dislike_preview = (
-        candidates
-        .sort_values(
-            by="dislike_score",
-            ascending=False
-        )
-        .head(10)
-    )
-
-    for _, row in dislike_preview.iterrows():
-
-        print(
-            f"- {row['food_name']} | "
-            f"dislike={row['dislike_score']:.4f}"
-        )
-    
-    print("="*70)
+    print("=" * 70)
 
     return (
         candidates

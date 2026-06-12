@@ -1048,87 +1048,149 @@ function hideLoading() {
 async function saveSwipe(action) {
   if (foods.length === 0) return;
 
-  // Ambil user dari sesi login
-  const storedUser = localStorage.getItem("fooderUser");
-  const currentUser = storedUser ? JSON.parse(storedUser) : null;
-  const userId = currentUser?.id || 1;
+  const currentFood = foods[foodIndex];
+
+  const storedUser =
+    localStorage.getItem("fooderUser");
+
+  const currentUser =
+    storedUser
+      ? JSON.parse(storedUser)
+      : null;
+
+  const userId =
+    currentUser?.id || 1;
 
   try {
-    const swipeResponse = await apiFetch(
-        `${API_BASE_URL}/swipe`,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                user_id: userId,
-                food_id:
-                    foods[foodIndex].food_id ??
-                    foods[foodIndex].id,
-                action: action
-            })
-        }
+
+    console.log("=================================");
+    console.log(
+      "CURRENT INDEX:",
+      foodIndex
     );
 
-    const swipeData =
-        await swipeResponse.json();
+    console.log(
+      "CURRENT FOOD:",
+      currentFood
+    );
 
     console.log(
-        "SWIPE RESPONSE:",
-        swipeData
+      "SENDING FOOD_ID:",
+      currentFood.food_id ??
+      currentFood.id
+    );
+
+    console.log(
+      "FOOD NAME:",
+      currentFood.food_name
+    );
+
+    console.log(
+      "ACTION:",
+      action
+    );
+
+    console.log("=================================");
+
+    const swipeResponse =
+      await apiFetch(
+        `${API_BASE_URL}/swipe`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            food_id:
+              currentFood.food_id ??
+              currentFood.id,
+            action: action
+          })
+        }
+      );
+
+    const swipeData =
+      await swipeResponse.json();
+
+    console.log(
+      "SWIPE RESPONSE:",
+      swipeData
     );
 
     if (
-        swipeData.match &&
-        swipeData.match.matched
+      swipeData.match &&
+      swipeData.match.matched
     ) {
-        console.log(
-            "MATCH FOUND:",
-            swipeData.match.food_name
-        );
 
-        await triggerFoodMatch({
-            food_name:
-                swipeData.match.food_name,
-            image:
-                foods[foodIndex].img_url ||
-                foods[foodIndex].image ||
-                foods[foodIndex].img
-        });
+      await triggerFoodMatch({
+        food_name:
+          swipeData.match.food_name,
 
-        return;
+        image:
+          currentFood.img_url ||
+          currentFood.image ||
+          currentFood.img
+      });
+
+      return;
     }
 
-    const recResponse = await apiFetch(
-      `${API_BASE_URL}/recommendations/personal/${userId}`
+    const recResponse =
+      await apiFetch(
+        `${API_BASE_URL}/recommendations/personal/${userId}`
+      );
+
+    const recData =
+      await recResponse.json();
+
+    console.log(
+      "NEW TFIDF RECOMMENDATIONS:",
+      recData
     );
 
-    const recData = await recResponse.json();
+    console.log(
+      "OLD INDEX:",
+      foodIndex
+    );
 
-    console.log("NEW TFIDF RECOMMENDATIONS:", recData);
+    console.log(
+      "NEW RECOMMENDATIONS:",
+      recData.recommendations
+    );
+
     if (recData.recommendations) {
-        foods = recData.recommendations;
-    }
-    // Update hitungan lokal di localStorage (swipe DB + sesi ini)
-    if (currentUser) {
-      currentUser.swipe = (currentUser.swipe || 0) + 1;
-      if (action === "like") {
-        currentUser.like = (currentUser.like || 0) + 1;
-      }
-      localStorage.setItem("fooderUser", JSON.stringify(currentUser));
 
-      // Perbarui tampilan profil jika sudah di-render
-      const swipeEl = document.getElementById("swipeCount");
-      const likeEl = document.getElementById("likedCount");
-      if (swipeEl) swipeEl.innerText = currentUser.swipe;
-      if (likeEl) likeEl.innerText = currentUser.like;
+      foods =
+        recData.recommendations;
+
+      foodIndex = 0;
+
+      updateFoodCard();
+
+      console.log(
+        "RESET INDEX TO 0"
+      );
     }
 
-    console.log(`Swipe ${action} saved for user ${userId}`);
+    console.log(
+      "INDEX AFTER UPDATE:",
+      foodIndex
+    );
+
+    console.log(
+      "FOOD AT CURRENT INDEX:",
+      foods[foodIndex]
+    );
 
   } catch (error) {
-    console.error("Failed to save swipe:", error);
+
+    console.error(
+      "Failed to save swipe:",
+      error
+    );
+
   }
 }
 
@@ -1230,23 +1292,6 @@ function renderFavoritePage() {
       </div>
 
     `).join("");
-}
-
-function swipeRight() {
-  if (!foodCard) return;
-
-  const currentFood = foods[foodIndex];
-
-  saveLikedFood(currentFood);
-
-  saveSwipe("like");
-
-  foodCard.style.transition = "0.35s ease";
-  foodCard.style.transform = "translateX(520px) rotate(25deg)";
-
-  setTimeout(() => {
-    nextFood();
-  }, 350);
 }
 
 async function loadRecommendations(userId) {
@@ -1561,17 +1606,34 @@ function waitForLoaderFinish() {
   return new Promise(resolve => setTimeout(resolve, 3500));
 }
 
-function swipeLeft() {
+async function swipeRight() {
   if (!foodCard) return;
 
-  saveSwipe("dislike");
+  const currentFood = foods[foodIndex];
+
+  saveLikedFood(currentFood);
+
+  await saveSwipe("like");
+
+  foodCard.style.transition = "0.35s ease";
+  foodCard.style.transform = "translateX(520px) rotate(25deg)";
+
+  //setTimeout(() => {
+  //  nextFood();
+  //}, 350);
+}
+
+async function swipeLeft() {
+  if (!foodCard) return;
+
+  await saveSwipe("dislike");
 
   foodCard.style.transition = "0.35s ease";
   foodCard.style.transform = "translateX(-520px) rotate(-25deg)";
 
-  setTimeout(() => {
-    nextFood();
-  }, 350);
+  //setTimeout(() => {
+  //  nextFood();
+  //}, 350);
 }
 
 function resetCard() {

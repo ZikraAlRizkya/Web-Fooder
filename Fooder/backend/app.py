@@ -106,15 +106,42 @@ def check_food_match(
     tfidf_matrix,
 ):
     """
-    Tinder-style food matching.
+    Match Logic
+
+    1. < 5 likes
+       -> tidak boleh match
+
+    2. 5 - 14 likes
+       -> match jika final_score >= MIN_SCORE
+
+    3. >= 15 likes
+       -> force match dari Top 10
     """
 
     MIN_LIKES = 6
+    MAX_LIKES = 15
     MIN_SCORE = 0.45
-    MIN_DOMINANCE = 0.60
 
-    # Belum cukup swipe
-    if len(user_sess.liked_foods) < MIN_LIKES:
+    liked_count = len(
+        user_sess.liked_foods
+    )
+
+    print("\n" + "=" * 50)
+    print("CHECK FOOD MATCH")
+    print("=" * 50)
+    print("LIKED COUNT:", liked_count)
+
+    # --------------------------------------------------
+    # BELUM CUKUP LIKE
+    # --------------------------------------------------
+
+    if liked_count < MIN_LIKES:
+
+        print(
+            f"[MATCH] Need at least "
+            f"{MIN_LIKES} likes"
+        )
+
         return None
 
     recommendations = get_top_recommendations(
@@ -122,55 +149,97 @@ def check_food_match(
         food_master,
         tfidf,
         tfidf_matrix,
-        top_n=1
+        top_n=10
     )
 
     if not recommendations:
+
+        print(
+            "[MATCH] No recommendations"
+        )
+
         return None
 
     best_food = recommendations[0]
 
-    if best_food["similarity_score"] < MIN_SCORE:
-        return None
-
-    liked_rows = food_master[
-        food_master["food_id"].isin(
-            user_sess.liked_foods
-        )
-    ]
-
-    if liked_rows.empty:
-        return None
-
-    category_counts = Counter(
-        liked_rows["food_type"]
+    print(
+        "BEST FOOD:",
+        best_food["food_name"]
     )
 
-    dominant_count = max(
-        category_counts.values()
-    )
-
-    dominance_ratio = (
-        dominant_count /
-        len(liked_rows)
-    )
-
-    if dominance_ratio < MIN_DOMINANCE:
-        return None
-
-    return {
-        "matched": True,
-        "food_id": best_food["food_id"],
-        "food_name": best_food["food_name"],
-        "final_score": round(
+    print(
+        "BEST SCORE:",
+        round(
             best_food["final_score"],
             4
-        ),
-        "dominance_ratio": round(
-            dominance_ratio,
-            4
-        ),
-    }
+        )
+    )
+
+    # --------------------------------------------------
+    # FORCE MATCH
+    # --------------------------------------------------
+
+    if liked_count >= MAX_LIKES:
+
+        print(
+            "[MATCH] Force Match "
+            "(15 Likes Reached)"
+        )
+
+        best_food = max(
+            recommendations,
+            key=lambda x:
+                x["final_score"]
+        )
+
+        return {
+            "matched": True,
+            "food_id":
+                best_food["food_id"],
+            "food_name":
+                best_food["food_name"],
+            "final_score":
+                round(
+                    best_food["final_score"],
+                    4
+                ),
+        }
+
+    # --------------------------------------------------
+    # EARLY MATCH
+    # --------------------------------------------------
+
+    if (
+        best_food["final_score"]
+        >= MIN_SCORE
+    ):
+
+        print(
+            "[MATCH] Early Match"
+        )
+
+        return {
+            "matched": True,
+            "food_id":
+                best_food["food_id"],
+            "food_name":
+                best_food["food_name"],
+            "final_score":
+                round(
+                    best_food["final_score"],
+                    4
+                ),
+        }
+
+    # --------------------------------------------------
+    # BELUM MEMENUHI SCORE
+    # --------------------------------------------------
+
+    print(
+        "[MATCH] Score below threshold"
+    )
+
+    return None
 
 app.include_router(restaurants.router)
 app.include_router(users.router)
@@ -289,11 +358,6 @@ def save_swipe(data: SwipeRequest):
     food_text = food_row["food_text"].iloc[0] if not food_row.empty else ""
 
     user_sess = _get_user_session(data.user_id)
-    
-    if data.action == "like":
-        user_sess.add_like(data.food_id)
-    else:
-        user_sess.add_dislike(data.food_id)
         
     food_master, _, _ = _get_rec_engine()
 
