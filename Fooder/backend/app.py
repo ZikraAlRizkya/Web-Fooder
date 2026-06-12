@@ -496,6 +496,16 @@ def get_personal_recommendations(user_id: int, top_n: int = 10):
     print("TOTAL RECOMMENDATIONS:", len(recommendations))
     print("PERSONAL RECOMMENDATION REQUEST")
     print("USER:", user_id)
+    
+    print("\nRETURN TO FRONTEND")
+
+    for i, r in enumerate(recommendations[:10]):
+        print(
+            i,
+            r["food_id"],
+            r["food_name"]
+        )
+        
     return {
         "user_id": user_id,
         "recommendations": result,

@@ -1159,6 +1159,15 @@ async function saveSwipe(action) {
       "NEW RECOMMENDATIONS:",
       recData.recommendations
     );
+    console.log(
+        "FIRST RECOMMENDATION:",
+        recData.recommendations[0]
+    );
+
+    console.log(
+        "SECOND RECOMMENDATION:",
+        recData.recommendations[1]
+    );
 
     if (recData.recommendations) {
 
