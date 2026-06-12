@@ -75,15 +75,15 @@ PREFERENCE_EXPANSION = {
     # CUISINE
     # ==========================================
 
-    '''"Indonesian": [
-        "sambal",
+    "Indonesian": [
+        "sate",
         "bakso",
         "rendang"
-    ],'''
+    ],
 
     "Korean": [
         "kimchi",
-        "bibimbap",
+        "korean",
         "bulgogi"
     ],
 
@@ -94,15 +94,15 @@ PREFERENCE_EXPANSION = {
     ],
 
     "Western": [
-        "burger",
+        "beef",
         "steak",
         "sandwich"
     ],
 
     "Chinese": [
         "capcay",
-        "bakmi",
-        "kwetiau"
+        "dimsum",
+        "fuyunghai"
     ],
 
     # ==========================================

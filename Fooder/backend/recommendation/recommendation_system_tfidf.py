@@ -155,10 +155,9 @@ def load_food_master_from_db(db: Session) -> pd.DataFrame:
     # BUILD FINAL food_text
     df["food_text"] = (
         df["food_text"] + " " +
-        df["taste_mood"] + " " +
-        df["food_type"] + " " +
-        df["cuisine"] + " " +
-        df["requirement"]
+        df["taste_mood"].fillna("") + " " +
+        df["food_type"].fillna("")
+
     )
 
     # --------------------------------------------------------
@@ -173,12 +172,8 @@ def load_food_master_from_db(db: Session) -> pd.DataFrame:
     # --------------------------------------------------------
 
     df["food_type"] = df["food_text"].apply(detect_food_type)
-    df["cuisine"]   = df["food_text"].apply(detect_cuisine)
-    df["food_text"] = (
-        df["food_text"] + " " +
-        df["food_type"].fillna("") + " " +
-        df["cuisine"].fillna("")
-    )
+    df["taste_mood"] = df["food_text"].apply(detect_taste_mood)
+
     df["food_source"] = "database"
 
     # --------------------------------------------------------
@@ -275,21 +270,21 @@ def detect_taste_mood(food_text: str) -> str:
     ]
 
     if any(k in food_text for k in spicy_keywords):
-        return "spicy"
+        return "pedas sambal cabe"
 
     if any(k in food_text for k in savory_keywords):
-        return "savory"
+        return "gurih bawang kaldu"
 
     if any(k in food_text for k in comfort_keywords):
-        return "comfort_food"
+        return "bakso gulai soto"
 
     if any(k in food_text for k in healthy_keywords):
-        return "healthy"
+        return "salad sayur buah"
     
     if any(k in food_text for k in sweet_keywords):
-        return "sweet"
+        return "manis gula coklat"
 
-    return "other"
+    return None
 
 def detect_food_type(food_text: str) -> str:
     food_text = str(food_text).lower()
@@ -338,24 +333,24 @@ def detect_food_type(food_text: str) -> str:
     ]
 
     if any(k in food_text for k in rice_keywords):
-        return "rice"
+        return "rice nasi"
 
     if any(k in food_text for k in noodle_keywords):
-        return "noodles"
+        return "mie ramen kwetiau"
 
     if any(k in food_text for k in chicken_keywords):
-        return "chicken"
+        return "ayam chicken katsu"
 
     if any(k in food_text for k in seafood_keywords):
-        return "seafood"
+        return "udang cumi ikan"
     
     if any(k in food_text for k in dessert_keywords):
-        return "dessert"
+        return "cheesecake pie panekuk"
 
     if any(k in food_text for k in snack_keywords):
-        return "snack"
+        return "risoles cireng dimsum"
 
-    return "other"
+    return None
 
 
 def detect_cuisine(food_text: str) -> str:
@@ -419,7 +414,7 @@ def detect_cuisine(food_text: str) -> str:
     if any(k in food_text for k in chinese_keywords):
         return "chinese"
 
-    return "other"
+    return None
 
 def detect_requirement(food_text: str) -> str:
     food_text = str(food_text).lower()
@@ -445,16 +440,16 @@ def detect_requirement(food_text: str) -> str:
     ]
 
     if any(k in food_text for k in protein_keywords):
-        return "high_protein"
+        return "ayam daging telur"
 
     # Vegetarian hanya jika tidak ada protein hewani
     if any(k in food_text for k in vegetarian_keywords):
-        return "vegetarian"
+        return "tahu tempe"
 
     if any(k in food_text for k in low_calorie_keywords):
         return "low_calorie"
 
-    return ""
+    return None
 #==============================================
 # CELL 6 — FOOD ATTRIBUTE EXTRACTION
 # ============================================================
@@ -640,20 +635,11 @@ def build_session_query(
                     [row["food_type"]] * 4
                 )
 
-            if row["cuisine"]:
-                query_parts.extend(
-                    [row["cuisine"]] * 3
-                )
-
             if row["taste_mood"]:
                 query_parts.extend(
                     [row["taste_mood"]] * 3
                 )
 
-            if row["requirement"]:
-                query_parts.extend(
-                    [row["requirement"]]
-                )
 
     session_query = " ".join(query_parts)
 
@@ -782,6 +768,23 @@ def retrieve_candidates(
     ]
 
     # ==========================================
+    # ALLERGY FILTER
+    # ==========================================
+
+    if user_session.allergies:
+
+        for allergy in user_session.allergies:
+
+            candidates = candidates[
+                ~candidates["food_text"]
+                .str.contains(
+                    allergy,
+                    case=False,
+                    na=False
+                )
+            ]
+    
+    # ==========================================
     # HARD FILTER CUISINE
     # ==========================================
     if user_session.selected_cuisines:
@@ -837,7 +840,7 @@ def retrieve_candidates(
     # ==========================================
     # REQUIREMENT FILTER
     # ==========================================
-    if "Vegetarian" in user_session.selected_requirements:
+    '''if "Vegetarian" in user_session.selected_requirements:
 
         candidates = candidates[
             candidates["requirement"]
@@ -849,7 +852,7 @@ def retrieve_candidates(
         candidates = candidates[
             candidates["requirement"]
             == "high_protein"
-        ]
+        ]'''
 
     # ==========================================
     # DEBUG
