@@ -110,9 +110,9 @@ def check_food_match(
     Match Logic
     1. < 5 likes
        -> tidak boleh match
-    2. 5 - 14 likes
+    2. 5 - 9 likes
        -> match jika final_score >= MIN_SCORE
-    3. >= 15 likes
+    3. >= 10 likes
        -> force match dari Top 10
     """
     MIN_LIKES = 6
@@ -378,31 +378,28 @@ def save_swipe(data: SwipeRequest):
         tfidf_matrix
     )
 
-    if food_match:
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == data.user_id).first()
+        if user:
+            user.swipe = (user.swipe or 0) + 1
+            if data.action == "like":
+                user.like = (user.like or 0) + 1
+            db.commit()
+    finally:
+        db.close()
 
+    if food_match:
         print("=" * 50)
         print("FOOD MATCH FOUND")
         print(food_match)
         print("=" * 50)
         session = SessionLocal()
-        user = session.query(User).filter(
-            User.id == data.user_id
-        ).first()
+        user = session.query(User).filter(User.id == data.user_id).first()
         if user:
             user.match = (user.match or 0) + 1
             session.commit()
         session.close()
-        # Update DB
-        db = SessionLocal()
-        try:
-            user = db.query(User).filter(User.id == data.user_id).first()
-            if user:
-                user.swipe = (user.swipe or 0) + 1
-                if data.action == "like":
-                    user.like = (user.like or 0) + 1
-                db.commit()
-        finally:
-            db.close()
     print("SWIPE RECEIVED")
     print("USER :", data.user_id)
     print("FOOD :", data.food_id)

@@ -25,7 +25,7 @@ from utils.text_cleaning import clean_text
 logger = logging.getLogger(__name__)
 
 # ── Konstanta ─────────────────────────────────────────────────────────────────
-INDOBERT_MODEL = "mdhugol/indonesia-bert-sentiment-classifier"
+INDOBERT_MODEL = "w11wo/indonesian-roberta-base-sentiment-classifier"
 
 # Path model relatif terhadap file ini
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -34,6 +34,10 @@ VECTORIZER_PATH = os.path.join(_HERE, "..", "app", "models", "tfidf_vectorizer.p
 
 # Mapping label IndoBERT → label FooDer
 LABEL_MAP = {
+    "negative": "negatif",
+    "neutral": "netral",
+    "positive": "positif",
+    
     "LABEL_0": "negatif",
     "LABEL_1": "netral",
     "LABEL_2": "positif",
@@ -135,12 +139,17 @@ class SentimentService:
     def _predict_indobert(self, cleaned_text: str) -> SentimentResult:
         # Potong teks panjang (IndoBERT max 512 token)
         truncated = " ".join(cleaned_text.split()[:400])
-        results = self._pipeline(truncated)[0]
-        best = max(results, key=lambda x: x["score"])
-        label: SentimentLabel = LABEL_MAP.get(best["label"], "netral")
+
+        result = self._pipeline(truncated)[0]
+
+        label: SentimentLabel = LABEL_MAP.get(
+            result["label"],
+            "netral"
+        )
+
         return SentimentResult(
             label=label,
-            score=round(best["score"], 4),
+            score=round(result["score"], 4),
             numeric_score=NUMERIC_SCORE_MAP[label],
         )
 

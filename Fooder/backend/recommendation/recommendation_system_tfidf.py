@@ -562,7 +562,7 @@ def build_session_query(
             PREFERENCE_EXPANSION.get(
                 mood,
                 [mood]
-            )
+            ) * 2
         )
 
     # Food Type (paling penting)
@@ -572,7 +572,7 @@ def build_session_query(
             PREFERENCE_EXPANSION.get(
                 food_type,
                 [food_type]
-            ) * 2
+            ) * 4
         )
 
     # Cuisine

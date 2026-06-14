@@ -1137,6 +1137,8 @@ async function saveSwipe(action) {
       swipeData
     );
 
+    await fetchUsers();
+
     if (
       swipeData.match &&
       swipeData.match.matched
