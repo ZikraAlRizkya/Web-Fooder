@@ -84,25 +84,29 @@ PREFERENCE_EXPANSION = {
     "Korean": [
         "kimchi",
         "korean",
-        "bulgogi"
+        "bulgogi",
+        "tteokbokki"
     ],
 
     "Japanese": [
         "sushi",
         "ramen",
-        "teriyaki"
+        "teriyaki",
+        "japanese"
     ],
 
     "Western": [
         "beef",
         "steak",
-        "sandwich"
+        "sandwich",
+        "western"
     ],
 
     "Chinese": [
         "capcay",
         "dimsum",
-        "fuyunghai"
+        "fuyunghai",
+        "chinese"
     ],
 
     # ==========================================

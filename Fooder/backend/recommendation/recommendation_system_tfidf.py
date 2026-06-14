@@ -516,6 +516,8 @@ class UserSession:
         self.selected_food_types = []    # e.g. ["Rice"]
         self.selected_cuisines   = []    # e.g. ["Japanese"]
 
+        self.allergies   = []
+        
         # Session profile
         self.today_taste_profile = {}
 
@@ -771,18 +773,47 @@ def retrieve_candidates(
     # ALLERGY FILTER
     # ==========================================
 
+    print("\n===== ALLERGY DEBUG =====")
+    print("ALLERGIES:", user_session.allergies)
+    print("TOTAL CANDIDATES BEFORE:", len(candidates))
+
     if user_session.allergies:
 
         for allergy in user_session.allergies:
+
+            print(f"\nFiltering allergy: {allergy}")
+
+            matched = candidates[
+                candidates["food_text"]
+                .str.contains(
+                    allergy,
+                    case=False,
+                    na=False,
+                    regex=False
+                )
+            ]
+
+            print("FOUND:", len(matched))
+
+            if not matched.empty:
+                print(
+                    matched[
+                        ["food_name", "food_text"]
+                    ].head(10)
+                )
 
             candidates = candidates[
                 ~candidates["food_text"]
                 .str.contains(
                     allergy,
                     case=False,
-                    na=False
+                    na=False,
+                    regex=False
                 )
             ]
+
+    print("TOTAL CANDIDATES AFTER:", len(candidates))
+    print("=========================\n")
     
     # ==========================================
     # HARD FILTER CUISINE
@@ -1148,3 +1179,43 @@ def decide_match(
         "action":  action,
         "session": user_session.summary(),
     }
+    
+def get_liked_foods_scores(
+    user_session: UserSession,
+    food_master: pd.DataFrame,
+    tfidf,
+    tfidf_matrix,
+) -> list[dict]:
+    """
+    Menghitung final_score untuk makanan yang sudah di-like,
+    digunakan khusus untuk Force Match logic.
+    """
+    if not user_session.liked_foods:
+        return []
+
+    user_vector = build_user_vector(user_session, food_master, tfidf)
+    if user_vector is None:
+        return []
+
+    liked_rows = food_master[
+        food_master["food_id"].isin(user_session.liked_foods)
+    ].copy()
+
+    if liked_rows.empty:
+        return []
+
+    # Hitung similarity score untuk liked foods saja
+    liked_indices = liked_rows.index.tolist()
+    liked_matrix = tfidf_matrix[liked_indices]
+
+    similarity_scores = (
+        cosine_similarity(user_vector, liked_matrix).flatten()
+    )
+
+    liked_rows = liked_rows.reset_index(drop=True)
+    liked_rows["similarity_score"] = similarity_scores
+    liked_rows["final_score"] = similarity_scores  # tidak ada dislike penalty
+
+    return liked_rows[[
+        "food_id", "food_name", "final_score", "similarity_score"
+    ]].to_dict(orient="records")

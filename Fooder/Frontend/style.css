@@ -1858,3 +1858,260 @@ body.dark-mode .rr-nearby-title {
   }
 
 }
+
+/* =========================================================
+   GLOBAL DARK MODE FIX - FooDer
+   Taruh di paling bawah supaya override semua style lama.
+   ========================================================= */
+
+body.dark-mode {
+  background: #17120f;
+  color: #f8efe7;
+}
+
+body.dark-mode .app {
+  background: #17120f;
+}
+
+body.dark-mode p,
+body.dark-mode .auth-subtitle,
+body.dark-mode .small-text,
+body.dark-mode .filter-title,
+body.dark-mode .empty-result p,
+body.dark-mode .empty-favorite p,
+body.dark-mode .nearby-empty-text,
+body.dark-mode .list-card p,
+body.dark-mode .list-card small,
+body.dark-mode .fav-card p,
+body.dark-mode .profile-stats span,
+body.dark-mode .taste-card b,
+body.dark-mode .detail-stats small,
+body.dark-mode .desc,
+body.dark-mode .ai-summary p,
+body.dark-mode .score-card p,
+body.dark-mode .modal-content > p,
+body.dark-mode .allergy-box p,
+body.dark-mode .edit-profile-box p,
+body.dark-mode .rr-card-addr,
+body.dark-mode .rr-review-count,
+body.dark-mode .rrd-stat span,
+body.dark-mode .rrd-address,
+body.dark-mode .rrd-section p {
+  color: #c8b8ad;
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode .auth-title,
+body.dark-mode .list-card h4,
+body.dark-mode .fav-card h4,
+body.dark-mode .profile-stats b,
+body.dark-mode .rr-nearby-title,
+body.dark-mode .rr-card-name,
+body.dark-mode .rr-stat b,
+body.dark-mode .rrd-section-title,
+body.dark-mode .rrd-stat b {
+  color: #f8efe7;
+}
+
+body.dark-mode h1 span,
+body.dark-mode .auth-title span,
+body.dark-mode .rr-card-food,
+body.dark-mode .score-card h4,
+body.dark-mode .rrd-section h4,
+body.dark-mode .filter-cards span {
+  color: #ff9b6d;
+}
+
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background: #241c18;
+  color: #f8efe7;
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #9d8d82;
+}
+
+body.dark-mode .auth-form input,
+body.dark-mode .auth-form select,
+body.dark-mode .secondary-btn,
+body.dark-mode .modal-content,
+body.dark-mode .allergy-box,
+body.dark-mode .success-icon,
+body.dark-mode .notif-btn,
+body.dark-mode .category,
+body.dark-mode .chips span,
+body.dark-mode .search-box,
+body.dark-mode .filter-cards div,
+body.dark-mode .list-card,
+body.dark-mode .fav-card,
+body.dark-mode .profile-header button,
+body.dark-mode .profile-stats div,
+body.dark-mode .profile-boxes div,
+body.dark-mode .taste-card,
+body.dark-mode .settings-list,
+body.dark-mode .settings-list button,
+body.dark-mode .edit-profile-box,
+body.dark-mode .detail-stats,
+body.dark-mode .ai-summary,
+body.dark-mode .score-card,
+body.dark-mode .detail-actions button,
+body.dark-mode .keywords span,
+body.dark-mode .rr-popup-box,
+body.dark-mode .rr-card,
+body.dark-mode .rr-stats,
+body.dark-mode .rr-back,
+body.dark-mode .rrd-box,
+body.dark-mode .rrd-stats-row,
+body.dark-mode .rrd-section,
+body.dark-mode .fl-box,
+body.dark-mode .food-search-btn-cancel,
+body.dark-mode .bot-msg,
+body.dark-mode #chatbotBox {
+  background: #241c18;
+  color: #f8efe7;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .28);
+}
+
+body.dark-mode .bottom-navbar {
+  background: rgba(36, 28, 24, .92);
+  box-shadow: 0 12px 30px rgba(0,0,0,.35);
+}
+
+body.dark-mode .nav {
+  color: #f8efe7;
+}
+
+body.dark-mode .nav.active {
+  color: white;
+}
+
+body.dark-mode .category.active,
+body.dark-mode .chips .active,
+body.dark-mode .allergy-chips span.active,
+body.dark-mode .daily-chips span.active {
+  background: linear-gradient(135deg, #ff844d, #ff5f5f);
+  color: white;
+}
+
+body.dark-mode .trending-badge,
+body.dark-mode .rr-card-rating,
+body.dark-mode .rr-btn-secondary,
+body.dark-mode .detail-tags span,
+body.dark-mode .food-search-btn-cancel,
+body.dark-mode .fl-step,
+body.dark-mode .fl-icon-wrap {
+  background: #33251f;
+  color: #ffb08a;
+}
+
+body.dark-mode .settings-list button,
+body.dark-mode .chat-input-wrap {
+  border-color: #3a2d27;
+}
+
+body.dark-mode .modal-close,
+body.dark-mode .rr-popup-close,
+body.dark-mode .back-btn,
+body.dark-mode .save-btn,
+body.dark-mode .reject-btn,
+body.dark-mode .star-btn,
+body.dark-mode .rrd-close {
+  background: #33251f;
+  color: #f8efe7;
+}
+
+body.dark-mode .price-tag {
+  background: rgba(36, 28, 24, .88);
+  color: #f8efe7;
+}
+
+body.dark-mode #chatMessages {
+  background: #17120f;
+}
+
+body.dark-mode .user-msg,
+body.dark-mode #chatbotBtn,
+body.dark-mode .chat-header,
+body.dark-mode .chat-input-wrap button,
+body.dark-mode .search-box button,
+body.dark-mode .nearby button,
+body.dark-mode .like-btn,
+body.dark-mode .order-btn,
+body.dark-mode .auth-btn,
+body.dark-mode .rr-btn-primary {
+  color: white;
+}
+
+body.dark-mode .loading-overlay {
+  background: rgba(23, 18, 15, .95);
+}
+
+body.dark-mode .spinner,
+body.dark-mode .loading-spinner,
+body.dark-mode .swipe-spinner-ring {
+  border-color: #33251f;
+  border-top-color: #ff844d;
+  background: #241c18;
+}
+
+body.dark-mode .map-box {
+  background:
+    linear-gradient(90deg,rgba(255,132,77,.12) 1px,transparent 1px),
+    linear-gradient(rgba(255,132,77,.12) 1px,transparent 1px),
+    #241c18;
+}
+
+body.dark-mode .map-badge {
+  background: #33251f;
+  color: #f8efe7;
+}
+
+body.dark-mode .sentiment-bar,
+body.dark-mode .rr-sentiment-bar,
+body.dark-mode .rrd-sent-bar,
+body.dark-mode .fl-bar-wrap {
+  background: #3a2d27;
+}
+
+body.dark-mode .rrd-label-pos,
+body.dark-mode .rr-sent-pos,
+body.dark-mode .sentiment-text span:first-child {
+  color: #7ee08b;
+}
+
+body.dark-mode .rrd-label-neg,
+body.dark-mode .rr-sent-neg,
+body.dark-mode .sentiment-text span:last-child {
+  color: #ff8f8f;
+}
+
+body.dark-mode .rrd-keyword {
+  background: #33251f;
+  border-color: #4a382f;
+  color: #ffb08a;
+}
+
+body.dark-mode .profile-boxes span {
+  background: #3a2528;
+  color: #ff9aa1;
+}
+
+body.dark-mode .profile-boxes .green {
+  background: #203629;
+  color: #8ee59c;
+}
+
+body.dark-mode .mode-slider {
+  background: #050505;
+}
+
+body.dark-mode .mode-circle {
+  background: #241c18;
+  border-color: #3a2d27;
+}

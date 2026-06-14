@@ -15,6 +15,7 @@ from Fooder.backend.recommendation.recommendation_system_tfidf import (
     load_food_master_from_db,
     build_tfidf_engine,
     get_top_recommendations,
+    get_liked_foods_scores,
     decide_match,
 )
 
@@ -107,43 +108,32 @@ def check_food_match(
 ):
     """
     Match Logic
-
     1. < 5 likes
        -> tidak boleh match
-
     2. 5 - 14 likes
        -> match jika final_score >= MIN_SCORE
-
     3. >= 15 likes
        -> force match dari Top 10
     """
-
     MIN_LIKES = 6
-    MAX_LIKES = 15
+    MAX_LIKES = 10
     MIN_SCORE = 0.45
-
     liked_count = len(
         user_sess.liked_foods
     )
-
     print("\n" + "=" * 50)
     print("CHECK FOOD MATCH")
     print("=" * 50)
     print("LIKED COUNT:", liked_count)
-
     # --------------------------------------------------
     # BELUM CUKUP LIKE
     # --------------------------------------------------
-
     if liked_count < MIN_LIKES:
-
         print(
             f"[MATCH] Need at least "
             f"{MIN_LIKES} likes"
         )
-
         return None
-
     recommendations = get_top_recommendations(
         user_sess,
         food_master,
@@ -151,58 +141,38 @@ def check_food_match(
         tfidf_matrix,
         top_n=10
     )
-
     if not recommendations:
-
         print(
             "[MATCH] No recommendations"
         )
-
         return None
-
     best_food = recommendations[0]
-
-    print(
-        "BEST FOOD:",
-        best_food["food_name"]
-    )
-
-    print(
-        "BEST SCORE:",
-        round(
-            best_food["final_score"],
-            4
-        )
-    )
-
     # --------------------------------------------------
-    # FORCE MATCH
+    # FORCE MATCH — dari liked foods
     # --------------------------------------------------
-
     if liked_count >= MAX_LIKES:
+        print("[MATCH] Force Match (10 Likes Reached)")
+
+        liked_scores = get_liked_foods_scores(
+            user_sess, food_master, tfidf, tfidf_matrix
+        )
+
+        if not liked_scores:
+            print("[MATCH] No liked foods scores found")
+            return None
+
+        best_food = max(liked_scores, key=lambda x: x["final_score"])
 
         print(
-            "[MATCH] Force Match "
-            "(15 Likes Reached)"
-        )
-
-        best_food = max(
-            recommendations,
-            key=lambda x:
-                x["final_score"]
+            f"[MATCH] Selected: {best_food['food_name']} "
+            f"(score={best_food['final_score']:.4f})"
         )
 
         return {
             "matched": True,
-            "food_id":
-                best_food["food_id"],
-            "food_name":
-                best_food["food_name"],
-            "final_score":
-                round(
-                    best_food["final_score"],
-                    4
-                ),
+            "food_id": best_food["food_id"],
+            "food_name": best_food["food_name"],
+            "final_score": round(best_food["final_score"], 4),
         }
 
     # --------------------------------------------------
@@ -281,11 +251,15 @@ class PreferenceRequest(BaseModel):
     food_types: list[str] = []
     cuisines: list[str] = []
     requirements: list[str] = []
+    allergies: list[str] = []
 
 from sqlalchemy.sql.expression import func
 
 @app.post("/preferences")
 def save_preferences(data: PreferenceRequest):
+    
+    print("\nRAW REQUEST:")
+    print(data.model_dump())
 
     user_sess = _get_user_session(data.user_id)
 
@@ -293,6 +267,7 @@ def save_preferences(data: PreferenceRequest):
     user_sess.selected_food_types = data.food_types
     user_sess.selected_cuisines = data.cuisines
     user_sess.selected_requirements = data.requirements
+    user_sess.allergies = data.allergies
 
     print("=" * 50)
     print("PREFERENCES SAVED")
@@ -300,6 +275,7 @@ def save_preferences(data: PreferenceRequest):
     print("FOOD TYPES:", user_sess.selected_food_types)
     print("CUISINES:", user_sess.selected_cuisines)
     print("REQUIREMENTS:", user_sess.selected_requirements)
+    print("ALLERGIES:", user_sess.allergies)
     print("=" * 50)
 
     return {"success": True}
@@ -454,6 +430,18 @@ def get_personal_recommendations(user_id: int, top_n: int = 10):
     user_sess = _get_user_session(user_id)
     db = SessionLocal()
 
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
+        .first()
+    )
+
+    if user and user.allergy:
+        user_sess.allergies = [
+            x.strip().lower()
+            for x in user.allergy.split(",")
+        ]
+    
     recommendations = get_top_recommendations(
         user_sess, food_master, tfidf, tfidf_matrix, top_n=top_n
     )
