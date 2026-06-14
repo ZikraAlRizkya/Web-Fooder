@@ -2258,7 +2258,7 @@ document.body.classList.add("auth-active");
 // fetchFoods();
 
 // Hapus sesi sebelumnya agar user selalu wajib login ulang setiap aplikasi dibuka
-localStorage.removeItem("fooderUser");
+// localStorage.removeItem("fooderUser");
 
 loadSavedProfile();
 
@@ -2272,7 +2272,7 @@ if (savedUser) {
 }
 
 // Inisialisasi halaman awal — selalu mulai dari halaman login
-showPage("loginPage");
+// showPage("loginPage");
 
 /* ═══════════════════════════════════════════════════════════════════
    SENTIMENT ANALYSIS — FooDer (Perbaikan & Integrasi)
