@@ -2262,6 +2262,15 @@ localStorage.removeItem("fooderUser");
 
 loadSavedProfile();
 
+// Cek apakah user sudah login sebelumnya
+const savedUser = localStorage.getItem("fooderUser");
+
+if (savedUser) {
+  showPage("homePage");
+} else {
+  showPage("loginPage");
+}
+
 // Inisialisasi halaman awal — selalu mulai dari halaman login
 showPage("loginPage");
 
